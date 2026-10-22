@@ -11,19 +11,19 @@ struct DownloadRowView: View {
             thumbnail
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(task.videoInfo?.title ?? task.url)
+                Text(title)
                     .font(.headline)
                     .lineLimit(2)
 
                 HStack {
                     statusText
                     if let duration = task.videoInfo?.duration, duration > 0 {
-                        Text("·")
+                        Text(verbatim: "·")
                         Text(formatDuration(duration))
                     }
                     if task.status == .downloading {
                         Spacer()
-                        Text("\(task.speed) · ETA \(task.eta)")
+                        Text(verbatim: "\(speed) · \(L10n.timeRemaining(task.eta))")
                             .monospacedDigit()
                     }
                 }
@@ -37,33 +37,40 @@ struct DownloadRowView: View {
 
             Spacer()
 
-            if task.status == .downloading || task.status == .fetchingInfo || task.status == .queued {
-                Button(action: onCancel) {
-                    Image(systemName: "xmark.circle.fill")
-                        .imageScale(.large)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Cancelar descarga")
-            } else if task.status == .completed {
-                Button(action: onReveal) {
-                    Image(systemName: "folder.fill")
-                        .imageScale(.large)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Ver archivo")
-            } else if case .failed = task.status {
-                Button(action: onRetry) {
-                    Image(systemName: "arrow.clockwise.circle.fill")
-                        .imageScale(.large)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Reintentar")
-            }
+            actionButton
         }
         .padding(.vertical, 4)
+    }
+
+    private var title: String {
+        guard let info = task.videoInfo else { return task.url }
+        return info.title ?? L10n.untitled
+    }
+
+    private var speed: String {
+        task.speed == "Unknown B/s" ? "—" : task.speed
+    }
+
+    @ViewBuilder
+    private var actionButton: some View {
+        switch task.status {
+        case .queued, .fetchingInfo, .downloading:
+            rowButton(systemImage: "xmark.circle.fill", help: L10n.cancelDownload, action: onCancel)
+        case .completed:
+            rowButton(systemImage: "folder.fill", help: L10n.showInFinder, action: onReveal)
+        case .failed, .cancelled:
+            rowButton(systemImage: "arrow.clockwise.circle.fill", help: L10n.retry, action: onRetry)
+        }
+    }
+
+    private func rowButton(systemImage: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .imageScale(.large)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .help(help)
     }
 
     @ViewBuilder
@@ -88,17 +95,19 @@ struct DownloadRowView: View {
     private var statusText: some View {
         switch task.status {
         case .queued:
-            Text("En cola")
+            Text(L10n.queued)
         case .fetchingInfo:
-            Text("Obteniendo información…")
+            Text(L10n.fetchingInfo)
         case .downloading:
             Text(String(format: "%.1f%%", task.percent))
                 .monospacedDigit()
         case .completed:
-            Label("Completado", systemImage: "checkmark.circle.fill")
+            Label(L10n.completed, systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-        case .failed(let message):
-            Label(message, systemImage: "exclamationmark.triangle.fill")
+        case .cancelled:
+            Label(L10n.canceled, systemImage: "xmark.circle")
+        case .failed(let error):
+            Label(error.message, systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
                 .lineLimit(3)
         }

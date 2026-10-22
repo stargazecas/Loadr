@@ -1,11 +1,12 @@
 import Foundation
 
-enum DownloadStatus: Equatable {
+enum DownloadStatus: Equatable, Sendable {
     case queued
     case fetchingInfo
     case downloading
     case completed
-    case failed(String)
+    case cancelled
+    case failed(DownloadError)
 }
 
 @Observable
@@ -28,8 +29,17 @@ final class DownloadTask: Identifiable {
         self.quality = quality
     }
 
+    var canRetry: Bool {
+        switch status {
+        case .failed, .cancelled: true
+        default: false
+        }
+    }
+
     func cancel() {
-        process?.terminate()
-        status = .failed("Cancelado")
+        if process?.isRunning == true {
+            process?.terminate()
+        }
+        status = .cancelled
     }
 }

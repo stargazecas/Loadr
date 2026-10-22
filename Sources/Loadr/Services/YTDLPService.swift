@@ -2,7 +2,8 @@ import Foundation
 
 struct VideoInfo: Sendable {
     let url: String
-    let title: String
+    /// `nil` cuando yt-dlp no devuelve título; la vista muestra "Sin título" / "Untitled".
+    let title: String?
     let thumbnailURL: URL?
     let duration: Double
 }
@@ -14,15 +15,6 @@ enum QualityOption: String, CaseIterable, Identifiable, Sendable {
     case audio
 
     var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .best: "Mejor calidad"
-        case .p1080: "1080p"
-        case .p720: "720p"
-        case .audio: "Solo audio (MP3)"
-        }
-    }
 
     var ytdlpFormat: String {
         switch self {
@@ -42,27 +34,36 @@ enum ContainerOption: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    var label: String {
-        switch self {
-        case .auto: "Automático"
-        default: rawValue.uppercased()
-        }
-    }
-
     var ytdlpValue: String? {
         self == .auto ? nil : rawValue
     }
 }
 
-enum YTDLPError: Error, LocalizedError {
-    case invalidJSON
-    case failed(String)
+/// Motivo por el que falla una descarga.
+///
+/// Los casos son semánticos (no llevan texto traducido) para que la interfaz pueda
+/// mostrarlos en el idioma activo y volver a traducirlos si el usuario cambia de idioma.
+/// El texto visible está en `L10n.swift` (`DownloadError.message`).
+enum DownloadError: Error, Equatable, Sendable {
+    /// yt-dlp respondió algo que no es el JSON esperado.
+    case invalidResponse
+    /// La playlist no contiene ningún video.
+    case emptyPlaylist
+    /// yt-dlp terminó con error sin escribir nada.
+    case exitCode(Int32)
+    /// Últimas líneas de salida de yt-dlp (se muestran tal cual, normalmente en inglés).
+    case output(String)
+    /// Cualquier otro error del sistema, ya traducido por macOS.
+    case system(String)
 
-    var errorDescription: String? {
-        switch self {
-        case .invalidJSON: "No se pudo interpretar la respuesta de yt-dlp."
-        case .failed(let message): message.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
+    init(_ error: any Error) {
+        self = (error as? DownloadError) ?? .system(error.localizedDescription)
+    }
+
+    /// Construye el error a partir de la salida de un proceso que terminó mal.
+    static func processFailed(output: String, status: Int32) -> DownloadError {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? .exitCode(status) : .output(trimmed)
     }
 }
 
@@ -101,11 +102,11 @@ struct YTDLPService: Sendable {
         ], onLaunch: onLaunch)
         guard let data = output.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw YTDLPError.invalidJSON
+            throw DownloadError.invalidResponse
         }
         return VideoInfo(
             url: url,
-            title: json["title"] as? String ?? "Sin título",
+            title: json["title"] as? String,
             thumbnailURL: URL(string: json["thumbnail"] as? String ?? ""),
             duration: json["duration"] as? Double ?? 0
         )
@@ -133,7 +134,7 @@ struct YTDLPService: Sendable {
                 playlistTitle = candidate
             }
             let id = json["id"] as? String ?? ""
-            let title = json["title"] as? String ?? "Sin título"
+            let title = json["title"] as? String
             let extractor = (json["ie_key"] as? String ?? "").lowercased()
             var entryURL = json["url"] as? String ?? ""
             var thumbnail: URL?
@@ -179,8 +180,7 @@ struct YTDLPService: Sendable {
                 if process.terminationReason == .exit && process.terminationStatus == 0 {
                     continuation.finish()
                 } else {
-                    let message = lines.recentText.isEmpty ? "yt-dlp terminó con código \(process.terminationStatus)." : lines.recentText
-                    continuation.finish(throwing: YTDLPError.failed(message))
+                    continuation.finish(throwing: DownloadError.processFailed(output: lines.recentText, status: process.terminationStatus))
                 }
             }
 
@@ -269,7 +269,7 @@ struct YTDLPService: Sendable {
                 if process.terminationStatus == 0 {
                     continuation.resume(returning: text)
                 } else {
-                    continuation.resume(throwing: YTDLPError.failed(text))
+                    continuation.resume(throwing: DownloadError.processFailed(output: text, status: process.terminationStatus))
                 }
             }
         }

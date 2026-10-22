@@ -7,5 +7,9 @@ struct LoadrApp: App {
             ContentView()
         }
         .defaultSize(width: 680, height: 460)
+
+        Settings {
+            SettingsView()
+        }
     }
 }

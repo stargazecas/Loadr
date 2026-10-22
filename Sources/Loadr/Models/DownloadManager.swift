@@ -20,6 +20,12 @@ final class DownloadManager {
     private var activeDownloads = 0
     let outputFolder: URL
 
+    /// Ruta de destino tal como la muestra Finder en el idioma del sistema (p. ej. "Descargas/Loadr").
+    var outputFolderDisplayPath: String {
+        let parent = FileManager.default.displayName(atPath: outputFolder.deletingLastPathComponent().path)
+        return "\(parent)/\(outputFolder.lastPathComponent)"
+    }
+
     init() {
         let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
         outputFolder = downloads.appendingPathComponent("Loadr", isDirectory: true)
@@ -69,12 +75,12 @@ final class DownloadManager {
         do {
             let playlist = try await service.fetchPlaylist(url: url)
             guard !playlist.entries.isEmpty else {
-                throw YTDLPError.failed("La playlist no contiene videos.")
+                throw DownloadError.emptyPlaylist
             }
             pendingPlaylist = PendingPlaylist(title: playlist.title, entries: playlist.entries)
         } catch {
             let task = DownloadTask(url: url, quality: quality)
-            task.status = .failed(error.localizedDescription)
+            task.status = .failed(DownloadError(error))
             tasks.insert(task, at: 0)
         }
     }
@@ -139,7 +145,7 @@ final class DownloadManager {
     }
 
     func retry(_ task: DownloadTask) {
-        guard case .failed = task.status else { return }
+        guard task.canRetry else { return }
         task.status = .queued
         task.percent = 0
         task.speed = ""
@@ -190,8 +196,9 @@ final class DownloadManager {
                 task.status = .completed
             }
         } catch {
-            if case .failed = task.status { return }
-            task.status = .failed(error.localizedDescription)
+            // Al cancelar, yt-dlp muere por señal y el stream lanza error: no es un fallo real.
+            if task.status == .cancelled { return }
+            task.status = .failed(DownloadError(error))
         }
     }
 }

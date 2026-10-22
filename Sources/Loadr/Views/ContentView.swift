@@ -14,23 +14,23 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                TextField("Pega la URL del video…", text: $urlString)
+                TextField(L10n.urlPlaceholder, text: $urlString)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(addDownload)
-                Picker("Calidad", selection: $manager.quality) {
+                Picker(L10n.quality, selection: $manager.quality) {
                     ForEach(QualityOption.allCases) { option in
                         Text(option.label).tag(option)
                     }
                 }
                 .fixedSize()
-                Picker("Formato", selection: $manager.container) {
+                Picker(L10n.format, selection: $manager.container) {
                     ForEach(ContainerOption.allCases) { option in
                         Text(option.label).tag(option)
                     }
                 }
                 .fixedSize()
                 .disabled(manager.quality == .audio)
-                Button("Descargar", action: addDownload)
+                Button(L10n.download, action: addDownload)
                     .disabled(!isValidURL)
                     .keyboardShortcut(.defaultAction)
                 if manager.tasks.contains(where: { $0.status == .completed }) {
@@ -39,7 +39,7 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "trash")
                     }
-                    .help("Limpiar completadas")
+                    .help(L10n.clearCompleted)
                 }
             }
             .padding()
@@ -48,14 +48,14 @@ struct ContentView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.yellow)
-                    Text("Faltan herramientas: \(manager.missingTools.joined(separator: ", "))")
+                    Text(L10n.missingTools(manager.missingTools.joined(separator: ", ")))
                         .font(.callout)
                     Spacer()
-                    Button("Copiar comando") {
+                    Button(L10n.copyCommand) {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString("brew install yt-dlp ffmpeg", forType: .string)
                     }
-                    Button("Reintentar") { manager.checkTools() }
+                    Button(L10n.checkAgain) { manager.checkTools() }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
@@ -66,9 +66,9 @@ struct ContentView: View {
 
             if manager.tasks.isEmpty {
                 ContentUnavailableView {
-                    Label("Sin descargas", systemImage: "arrow.down.circle")
+                    Label(L10n.noDownloads, systemImage: "arrow.down.circle")
                 } description: {
-                    Text("Pega la URL de un video para empezar. Las descargas se guardan en Downloads/Loadr.")
+                    Text(L10n.emptyStateDescription(folder: manager.outputFolderDisplayPath))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -84,18 +84,18 @@ struct ContentView: View {
         }
         .frame(minWidth: 680, minHeight: 460)
         .alert(
-            "Playlist detectada",
+            L10n.playlistDetected,
             isPresented: Binding(
                 get: { manager.pendingPlaylist != nil },
                 set: { if !$0 { manager.pendingPlaylist = nil } }
             ),
             presenting: manager.pendingPlaylist
         ) { playlist in
-            Button("Carpeta \"\(playlist.title)\"") { manager.confirmPlaylist(subfolder: true) }
-            Button("Carpeta general") { manager.confirmPlaylist(subfolder: false) }
-            Button("Cancelar", role: .cancel) {}
+            Button(L10n.playlistFolder(playlist.title)) { manager.confirmPlaylist(subfolder: true) }
+            Button(L10n.mainFolder) { manager.confirmPlaylist(subfolder: false) }
+            Button(L10n.cancel, role: .cancel) {}
         } message: { playlist in
-            Text("\(playlist.entries.count) videos. ¿Dónde quieres guardarlos?")
+            Text(L10n.playlistMessage(count: playlist.entries.count))
         }
     }
 

@@ -13,6 +13,9 @@
 		69B288A96B39D7C59BEC83BA /* LoadrApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BCDF228C1110AEDC5C4A8CA /* LoadrApp.swift */; };
 		D016E51B05396B128F62D8D2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9670BE673333F34D9E6F4FFE /* ContentView.swift */; };
 		E19CF2D22EC28364759F9386 /* YTDLPService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53A19BB934752943CF7BB9D /* YTDLPService.swift */; };
+		725693BB94583C509A3558B5 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7EA7EAB3B634F354BF28F56 /* L10n.swift */; };
+		5BB329A107BE27FEE2360655 /* LanguageSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55D21AE74D44019D21BE708 /* LanguageSettings.swift */; };
+		5924CA14E73A89458127F105 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BDD7D4757039A18E676C47 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +26,9 @@
 		91DCA278B75E0D46FB3D0D21 /* Loadr.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Loadr.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9670BE673333F34D9E6F4FFE /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D53A19BB934752943CF7BB9D /* YTDLPService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTDLPService.swift; sourceTree = "<group>"; };
+		D7EA7EAB3B634F354BF28F56 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
+		A55D21AE74D44019D21BE708 /* LanguageSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageSettings.swift; sourceTree = "<group>"; };
+		B8BDD7D4757039A18E676C47 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -31,6 +37,7 @@
 			children = (
 				9670BE673333F34D9E6F4FFE /* ContentView.swift */,
 				41F2C129933E437198CF4A01 /* DownloadRowView.swift */,
+				B8BDD7D4757039A18E676C47 /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -80,11 +87,21 @@
 			isa = PBXGroup;
 			children = (
 				6BCDF228C1110AEDC5C4A8CA /* LoadrApp.swift */,
+				03B45BDEB20668215D4DA850 /* Localization */,
 				96F4A473AD655652843C9125 /* Models */,
 				7D8ED4048A2B96BA12AF9208 /* Services */,
 				0212A30F8556AE40F6F39BDA /* Views */,
 			);
 			path = Loadr;
+			sourceTree = "<group>";
+		};
+		03B45BDEB20668215D4DA850 /* Localization */ = {
+			isa = PBXGroup;
+			children = (
+				D7EA7EAB3B634F354BF28F56 /* L10n.swift */,
+				A55D21AE74D44019D21BE708 /* LanguageSettings.swift */,
+			);
+			path = Localization;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -146,7 +163,10 @@
 				3CFB79E861F2F93D0C062B2A /* DownloadManager.swift in Sources */,
 				335DA63954FE1A9A1144F5B6 /* DownloadRowView.swift in Sources */,
 				42605F6DD60CD7A39812DC8E /* DownloadTask.swift in Sources */,
+				725693BB94583C509A3558B5 /* L10n.swift in Sources */,
+				5BB329A107BE27FEE2360655 /* LanguageSettings.swift in Sources */,
 				69B288A96B39D7C59BEC83BA /* LoadrApp.swift in Sources */,
+				5924CA14E73A89458127F105 /* SettingsView.swift in Sources */,
 				E19CF2D22EC28364759F9386 /* YTDLPService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -161,6 +181,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -297,6 +318,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
