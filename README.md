@@ -370,14 +370,12 @@ mostrar el progreso.
 
 ---
 
-## Aviso legal
-
-Loadr es una herramienta para descargar contenido al que tienes derecho a acceder.
-Respeta los términos de servicio de cada plataforma y las leyes de derechos de autor de tu
-país. El uso que hagas del programa es responsabilidad tuya.
+Loadr es una herramienta únicamente creada para descargar, no me hago responsable
+del tipo de contenido que decidas obtener con él, ni tampoco me interesa.
+Sé libre.
 
 ---
 
 ## Licencia
 
-Pendiente de definir.
+Distribuido bajo la licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más información.
