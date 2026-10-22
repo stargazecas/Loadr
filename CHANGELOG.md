@@ -28,6 +28,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - Miniatura y duración en los videos de una playlist.
 - Documentación: README en español e inglés, guías de arquitectura, idiomas y publicación de
   versiones, y este registro de cambios.
+- Loadr recuerda tus últimos cambios, las opciones que hayas cambiado se mantendrán cuando reinicies la app.
 
 ### Cambiado
 
