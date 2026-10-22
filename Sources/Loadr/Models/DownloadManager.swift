@@ -18,6 +18,7 @@ final class DownloadManager {
     private let service = YTDLPService()
     private let maxConcurrentDownloads = 3
     private var activeDownloads = 0
+    private var queueCounter = 0
     let outputFolder: URL
 
     /// Ruta de destino tal como la muestra Finder en el idioma del sistema (p. ej. "Descargas/Loadr").
@@ -49,18 +50,24 @@ final class DownloadManager {
         enqueue(url: sanitized)
     }
 
-    private func enqueue(url: String, info: VideoInfo? = nil, folder: URL? = nil) {
+    private func enqueue(url: String) {
         let task = DownloadTask(url: url, quality: quality)
-        task.videoInfo = info
-        task.outputFolder = folder
-        task.status = .queued
+        markQueued(task)
         tasks.insert(task, at: 0)
         pumpQueue()
     }
 
+    /// Da a la tarea el siguiente turno en la cola. La cola atiende por turno,
+    /// no por posición en la lista, así que el orden visual no afecta al de descarga.
+    private func markQueued(_ task: DownloadTask) {
+        queueCounter += 1
+        task.queuePosition = queueCounter
+        task.status = .queued
+    }
+
     private func pumpQueue() {
         while activeDownloads < maxConcurrentDownloads,
-              let task = tasks.last(where: { $0.status == .queued }) {
+              let task = tasks.filter({ $0.status == .queued }).min(by: { $0.queuePosition < $1.queuePosition }) {
             activeDownloads += 1
             task.status = .fetchingInfo
             Task {
@@ -96,9 +103,15 @@ final class DownloadManager {
             folder = folderURL
         }
 
-        for info in pending.entries.reversed() {
-            enqueue(url: info.url, info: info, folder: folder)
+        let newTasks = pending.entries.map { info in
+            let task = DownloadTask(url: info.url, quality: quality)
+            task.videoInfo = info
+            task.outputFolder = folder
+            markQueued(task)
+            return task
         }
+        tasks.insert(contentsOf: newTasks, at: 0)
+        pumpQueue()
     }
 
     private static func sanitizeFolderName(_ name: String) -> String {
@@ -146,7 +159,7 @@ final class DownloadManager {
 
     func retry(_ task: DownloadTask) {
         guard task.canRetry else { return }
-        task.status = .queued
+        markQueued(task)
         task.percent = 0
         task.speed = ""
         task.eta = ""

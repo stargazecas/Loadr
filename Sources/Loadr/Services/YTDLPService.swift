@@ -229,7 +229,8 @@ struct YTDLPService: Sendable {
     }
 
     private static func parseProgress(_ line: String) -> Progress? {
-        let pattern = #/\[download\]\s+([\d.]+)% of\s+~?[\d.]+ ?[KMGT]iB at\s+([\d.]+ ?[KMGT]iB/s|Unknown B/s).*ETA\s+([\d:]+)/#
+        // yt-dlp alinea los tamaños a 10 caracteres: "of   12.34MiB", "of ~  83.62MiB", "at    512.00B/s".
+        let pattern = #/\[download\]\s+([\d.]+)% of\s+~?\s*[\d.]+ ?(?:[KMGTPE]i)?B at\s+([\d.]+ ?(?:[KMGTPE]i)?B/s|Unknown B/s).*ETA\s+([\d:]+)/#
         guard let match = line.firstMatch(of: pattern) else { return nil }
         return Progress(
             percent: Double(match.output.1) ?? 0,

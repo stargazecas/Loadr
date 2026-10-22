@@ -17,6 +17,7 @@ final class DownloadTask: Identifiable {
     var videoInfo: VideoInfo?
     var quality: QualityOption
     var status: DownloadStatus = .fetchingInfo
+    var queuePosition = 0
     var percent: Double = 0
     var speed = ""
     var eta = ""
