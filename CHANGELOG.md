@@ -6,6 +6,15 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+### Añadido
+
+- Licencia MIT.
+
+### Cambiado
+
+- El README combina la guía de uso detallada (preguntas frecuentes, solución de problemas) con
+  las novedades de 0.2.0, y el README en inglés es su traducción completa.
+
 ## [0.2.0] - 2026-10-22
 
 ### Añadido
@@ -40,8 +49,6 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - Las playlists se descargaban empezando por el último video.
 - La barra de progreso no avanzaba cuando yt-dlp solo conoce un tamaño estimado (`of ~  83.62MiB`,
   habitual en descargas por fragmentos) o cuando la velocidad baja de 1 KiB/s.
-- Las instrucciones de Gatekeeper del README no funcionaban en macOS 15 (clic derecho → Abrir ya no
-  existe).
 
 ## [0.1.0] - 2026-10-21
 
