@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen
+
+      - name: Build Release
+        run: xcodebuild -scheme Loadr -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+
+      - name: Package app
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p build/dist
+          cd build/DerivedData/Build/Products/Release
+          ditto -c -k --sequesterRsrc --keepParent Loadr.app "$OLDPWD/build/dist/Loadr-${VERSION}-macOS.zip"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/dist/Loadr-*-macOS.zip
+          generate_release_notes: true

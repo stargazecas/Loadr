@@ -1,0 +1,18 @@
+name: Loadr
+options:
+  bundleIdPrefix: com.loadr
+  createIntermediateGroups: true
+targets:
+  Loadr:
+    type: application
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Sources/Loadr
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.loadr.loadr
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
