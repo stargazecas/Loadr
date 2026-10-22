@@ -19,13 +19,13 @@ struct ContentView: View {
                     .onSubmit(addDownload)
                 Picker("Calidad", selection: $manager.quality) {
                     ForEach(QualityOption.allCases) { option in
-                        Text(option.rawValue).tag(option)
+                        Text(option.label).tag(option)
                     }
                 }
                 .fixedSize()
                 Picker("Formato", selection: $manager.container) {
                     ForEach(ContainerOption.allCases) { option in
-                        Text(option.rawValue).tag(option)
+                        Text(option.label).tag(option)
                     }
                 }
                 .fixedSize()
@@ -33,6 +33,14 @@ struct ContentView: View {
                 Button("Descargar", action: addDownload)
                     .disabled(!isValidURL)
                     .keyboardShortcut(.defaultAction)
+                if manager.tasks.contains(where: { $0.status == .completed }) {
+                    Button {
+                        manager.clearCompleted()
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .help("Limpiar completadas")
+                }
             }
             .padding()
 
@@ -68,7 +76,8 @@ struct ContentView: View {
                     DownloadRowView(
                         task: task,
                         onCancel: { manager.cancel(task) },
-                        onReveal: { manager.reveal(task) }
+                        onReveal: { manager.reveal(task) },
+                        onRetry: { manager.retry(task) }
                     )
                 }
             }

@@ -8,12 +8,21 @@ struct VideoInfo: Sendable {
 }
 
 enum QualityOption: String, CaseIterable, Identifiable, Sendable {
-    case best = "Mejor calidad"
-    case p1080 = "1080p"
-    case p720 = "720p"
-    case audio = "Solo audio (MP3)"
+    case best
+    case p1080
+    case p720
+    case audio
 
     var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .best: "Mejor calidad"
+        case .p1080: "1080p"
+        case .p720: "720p"
+        case .audio: "Solo audio (MP3)"
+        }
+    }
 
     var ytdlpFormat: String {
         switch self {
@@ -26,15 +35,22 @@ enum QualityOption: String, CaseIterable, Identifiable, Sendable {
 }
 
 enum ContainerOption: String, CaseIterable, Identifiable, Sendable {
-    case auto = "Automático"
-    case mp4 = "MP4"
-    case mkv = "MKV"
-    case webm = "WebM"
+    case auto
+    case mp4
+    case mkv
+    case webm
 
     var id: String { rawValue }
 
+    var label: String {
+        switch self {
+        case .auto: "Automático"
+        default: rawValue.uppercased()
+        }
+    }
+
     var ytdlpValue: String? {
-        self == .auto ? nil : rawValue.lowercased()
+        self == .auto ? nil : rawValue
     }
 }
 
@@ -63,6 +79,7 @@ struct YTDLPService: Sendable {
     }
 
     private let binaryURL: URL = Self.findBinary("yt-dlp") ?? URL(fileURLWithPath: "/opt/homebrew/bin/yt-dlp")
+    private let ffmpegLocation = Self.findBinary("ffmpeg")?.path
 
     static func findBinary(_ name: String) -> URL? {
         let candidates = [
@@ -76,12 +93,12 @@ struct YTDLPService: Sendable {
         return nil
     }
 
-    func fetchInfo(url: String) async throws -> VideoInfo {
+    func fetchInfo(url: String, onLaunch: @escaping @Sendable (Process) -> Void = { _ in }) async throws -> VideoInfo {
         let output = try await runAndCollect(arguments: [
             "--no-playlist", "--no-warnings", "--no-colors",
             "-O", "%(.{title,thumbnail,duration})j",
             url,
-        ])
+        ], onLaunch: onLaunch)
         guard let data = output.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw YTDLPError.invalidJSON
@@ -102,7 +119,7 @@ struct YTDLPService: Sendable {
     func fetchPlaylist(url: String) async throws -> PlaylistInfo {
         let output = try await runAndCollect(arguments: [
             "--flat-playlist", "--no-warnings", "--no-colors",
-            "-O", "%(.{id,title,url,ie_key,playlist_title})j",
+            "-O", "%(.{id,title,url,ie_key,playlist_title,duration})j",
             url,
         ])
         var entries: [VideoInfo] = []
@@ -117,15 +134,18 @@ struct YTDLPService: Sendable {
             }
             let id = json["id"] as? String ?? ""
             let title = json["title"] as? String ?? "Sin título"
+            let extractor = (json["ie_key"] as? String ?? "").lowercased()
             var entryURL = json["url"] as? String ?? ""
-            if !entryURL.hasPrefix("http") {
-                let extractor = (json["ie_key"] as? String ?? "").lowercased()
-                if extractor.contains("youtube"), !id.isEmpty {
+            var thumbnail: URL?
+            if extractor.contains("youtube"), !id.isEmpty {
+                if !entryURL.hasPrefix("http") {
                     entryURL = "https://www.youtube.com/watch?v=\(id)"
                 }
+                thumbnail = URL(string: "https://i.ytimg.com/vi/\(id)/hqdefault.jpg")
             }
             guard !entryURL.isEmpty else { continue }
-            entries.append(VideoInfo(url: entryURL, title: title, thumbnailURL: nil, duration: 0))
+            let duration = json["duration"] as? Double ?? 0
+            entries.append(VideoInfo(url: entryURL, title: title, thumbnailURL: thumbnail, duration: duration))
         }
         return PlaylistInfo(title: playlistTitle.isEmpty ? "Playlist" : playlistTitle, entries: entries)
     }
@@ -140,13 +160,13 @@ struct YTDLPService: Sendable {
             process.standardOutput = pipe
             process.standardError = pipe
 
+            let lines = LineBuffer()
             pipe.fileHandleForReading.readabilityHandler = { handle in
                 let chunk = String(data: handle.availableData, encoding: .utf8) ?? ""
-                for line in chunk.split(separator: "\n") {
-                    let text = String(line)
-                    if let progress = Self.parseProgress(text) {
+                for line in lines.append(chunk) {
+                    if let progress = Self.parseProgress(line) {
                         continuation.yield(.progress(progress))
-                    } else if let file = Self.parseDestination(text) {
+                    } else if let file = Self.parseDestination(line) {
                         continuation.yield(.file(file))
                     }
                 }
@@ -154,11 +174,13 @@ struct YTDLPService: Sendable {
 
             process.terminationHandler = { process in
                 pipe.fileHandleForReading.readabilityHandler = nil
+                let tail = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                lines.append(tail)
                 if process.terminationReason == .exit && process.terminationStatus == 0 {
                     continuation.finish()
                 } else {
-                    let rest = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-                    continuation.finish(throwing: YTDLPError.failed(rest))
+                    let message = lines.recentText.isEmpty ? "yt-dlp terminó con código \(process.terminationStatus)." : lines.recentText
+                    continuation.finish(throwing: YTDLPError.failed(message))
                 }
             }
 
@@ -180,6 +202,9 @@ struct YTDLPService: Sendable {
             "-f", quality.ytdlpFormat,
             "-o", outputFolder.path + "/%(title)s.%(ext)s",
         ]
+        if let ffmpegLocation {
+            args += ["--ffmpeg-location", ffmpegLocation]
+        }
         if quality == .audio {
             args += ["-x", "--audio-format", "mp3"]
         } else if let value = container.ytdlpValue {
@@ -204,7 +229,7 @@ struct YTDLPService: Sendable {
     }
 
     private static func parseProgress(_ line: String) -> Progress? {
-        let pattern = #/\[download\]\s+([\d.]+)% of\s+~?[\d.]+ ?[KMGT]iB at\s+([\d.]+ ?[KMGT]iB/s).*ETA\s+([\d:]+)/#
+        let pattern = #/\[download\]\s+([\d.]+)% of\s+~?[\d.]+ ?[KMGT]iB at\s+([\d.]+ ?[KMGT]iB/s|Unknown B/s).*ETA\s+([\d:]+)/#
         guard let match = line.firstMatch(of: pattern) else { return nil }
         return Progress(
             percent: Double(match.output.1) ?? 0,
@@ -213,7 +238,7 @@ struct YTDLPService: Sendable {
         )
     }
 
-    private func runAndCollect(arguments: [String]) async throws -> String {
+    private func runAndCollect(arguments: [String], onLaunch: @escaping @Sendable (Process) -> Void = { _ in }) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
             process.executableURL = binaryURL
@@ -226,6 +251,8 @@ struct YTDLPService: Sendable {
             pipe.fileHandleForReading.readabilityHandler = { handle in
                 buffer.append(handle.availableData)
             }
+
+            onLaunch(process)
 
             do {
                 try process.run()
@@ -246,6 +273,37 @@ struct YTDLPService: Sendable {
                 }
             }
         }
+    }
+}
+
+private final class LineBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pending = ""
+    private var recent: [String] = []
+    private let maxRecent = 8
+
+    var recentText: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return recent.joined(separator: "\n")
+    }
+
+    @discardableResult
+    func append(_ chunk: String) -> [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        pending += chunk
+        var lines: [String] = []
+        while let newline = pending.firstIndex(of: "\n") {
+            let line = String(pending[..<newline])
+            pending.removeSubrange(...newline)
+            lines.append(line)
+        }
+        recent.append(contentsOf: lines.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+        if recent.count > maxRecent {
+            recent.removeFirst(recent.count - maxRecent)
+        }
+        return lines
     }
 }
 

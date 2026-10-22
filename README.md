@@ -2,77 +2,78 @@
 
 Interfaz gráfica nativa de macOS para [yt-dlp](https://github.com/yt-dlp/yt-dlp), escrita en SwiftUI.
 
-**Versión:** 0.1.0
+**Versión:** 0.2.0
 
-## Características
+## Instalación
 
-- Descarga videos pegando simplemente la URL.
-- Vista previa del video: título, miniatura y duración antes de descargar.
-- Selector de calidad: mejor calidad, 1080p, 720p o solo audio (MP3).
-- Selector de formato de video: automático, MP4, MKV o WebM.
-- Progreso en tiempo real con porcentaje, velocidad y tiempo restante.
-- Cancelación de descargas en curso.
-- Botón para revelar el archivo descargado en Finder.
-- Soporte de playlists de YouTube: detecta la URL, lista los videos y permite
-  elegir entre guardarlos en una carpeta propia o en la carpeta general.
-- Limpieza automática de URLs: elimina parámetros de rastreo (`si`, `utm_*`,
-  `fbclid`, etc.).
-- Ajustes persistentes: la calidad y el formato elegidos se recuerdan entre
-  sesiones.
-- Los archivos se guardan en `~/Downloads/Loadr`.
+1. Descarga `Loadr-x.x.x-macOS.zip` desde
+   [Releases](https://github.com/stargazecas/Loadr/releases).
+2. Descomprime el zip y mueve `Loadr.app` a la carpeta Aplicaciones.
+3. Requisito en tiempo de ejecución: `yt-dlp` y `ffmpeg` instalados:
 
-## Requisitos
+   ```sh
+   brew install yt-dlp ffmpeg
+   ```
 
-- macOS 15 o superior.
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) y [ffmpeg](https://ffmpeg.org):
+### Aviso de Gatekeeper
 
-  ```sh
-  brew install yt-dlp ffmpeg
-  ```
+La app no está firmada con un certificado de Apple Developer. La primera vez
+macOS mostrará el aviso de "desarrollador no identificado". Para abrirla:
+clic derecho sobre `Loadr.app` -> Abrir -> Abrir. Solo es necesario una vez.
 
-- Xcode 16 o superior (solo para compilar).
-- [XcodeGen](https://github.com/yonsm/XcodeGen) (solo para compilar):
+## Especificaciones técnicas
 
-  ```sh
-  brew install xcodegen
-  ```
+- **Stack:** Swift 6 (modo de concurrencia estricta), SwiftUI, `@Observable`.
+- **Plataforma:** macOS 15 o superior, Apple Silicon / Intel.
+- **Motor de descarga:** la app no descarga nada por sí misma; lanza `yt-dlp`
+  como subproceso (`Process`) y parsea su salida estándar línea a línea.
+- **Resolución de binarios:** busca `yt-dlp` y `ffmpeg` en
+  `/opt/homebrew/bin`, `/usr/local/bin` y dentro del bundle de la app.
+  La ruta de ffmpeg se pasa explícitamente con `--ffmpeg-location` para que
+  funcione al abrir la app desde Finder (PATH mínimo).
+- **Calidades:** mejor (`bv*+ba/b`), 1080p, 720p o solo audio con extracción
+  a MP3 vía ffmpeg (`-x --audio-format mp3`).
+- **Formatos de contenedor:** automático, MP4, MKV o WebM
+  (`--merge-output-format`).
+- **Concurrencia:** cola interna con un máximo de 3 descargas simultáneas.
+- **Progreso:** parseo de las líneas `[download]` de yt-dlp con un búfer que
+  solo procesa líneas completas; muestra porcentaje, velocidad y ETA.
+- **Errores:** se conservan las últimas 8 líneas de salida de yt-dlp como
+  mensaje de error; cada descarga fallida se puede reintentar.
+- **Playlists:** detección de URLs de playlist de YouTube, listado con
+  `--flat-playlist` y opción de guardar en una subcarpeta con el nombre de la
+  playlist o en la carpeta general.
+- **Limpieza de URLs:** en YouTube se conservan únicamente `v`, `t` y `list`;
+  en el resto de sitios se eliminan `utm_*`, `si`, `fbclid`, `gclid`, etc.
+- **Persistencia:** calidad y formato por defecto en `UserDefaults` con
+  identificadores estables (independientes del texto de la interfaz).
+- **Destino de archivos:** `~/Downloads/Loadr`.
 
 ## Compilación
 
+Requisitos: Xcode 16 o superior y [XcodeGen](https://github.com/yonsm/XcodeGen).
+
 ```sh
-git clone <url-del-repositorio>
+git clone https://github.com/stargazecas/Loadr.git
 cd Loadr
+brew install xcodegen
 xcodegen
 xcodebuild -scheme Loadr -configuration Debug build
 ```
 
 También puedes abrir `Loadr.xcodeproj` en Xcode y pulsar Run (Cmd+R).
 
-## Estructura del proyecto
+## Releases
 
-```
-Sources/Loadr/
-├── LoadrApp.swift              Punto de entrada de la app
-├── Models/
-│   ├── DownloadTask.swift      Modelo de una descarga individual
-│   └── DownloadManager.swift   Cola de descargas, ajustes y lógica de playlists
-├── Services/
-│   └── YTDLPService.swift      Wrapper de yt-dlp (procesos, parseo de salida)
-└── Views/
-    ├── ContentView.swift       Ventana principal
-    └── DownloadRowView.swift   Fila de cada descarga
-```
-
-La app no reimplementa nada de descarga: delega todo en el binario de
-`yt-dlp` (buscado en `/opt/homebrew/bin` y `/usr/local/bin`) y parsea su
-salida estándar para mostrar progreso.
+Los releases se generan automáticamente con GitHub Actions: al subir un tag
+`v*`, el workflow compila la app en Release y publica el zip.
 
 ## Roadmap
 
-- Limitar descargas simultáneas con cola configurable.
 - Historial de descargas.
 - Pegado automático desde el portapapeles.
 - Selector de carpeta de destino.
+- Firma y notarización con Developer ID.
 - Port para Android.
 
 ## Licencia

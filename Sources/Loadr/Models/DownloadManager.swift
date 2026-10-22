@@ -16,6 +16,8 @@ final class DownloadManager {
     }
 
     private let service = YTDLPService()
+    private let maxConcurrentDownloads = 3
+    private var activeDownloads = 0
     let outputFolder: URL
 
     init() {
@@ -45,8 +47,22 @@ final class DownloadManager {
         let task = DownloadTask(url: url, quality: quality)
         task.videoInfo = info
         task.outputFolder = folder
+        task.status = .queued
         tasks.insert(task, at: 0)
-        Task { await start(task) }
+        pumpQueue()
+    }
+
+    private func pumpQueue() {
+        while activeDownloads < maxConcurrentDownloads,
+              let task = tasks.last(where: { $0.status == .queued }) {
+            activeDownloads += 1
+            task.status = .fetchingInfo
+            Task {
+                await start(task)
+                activeDownloads -= 1
+                pumpQueue()
+            }
+        }
     }
 
     private func preparePlaylist(_ url: String) async {
@@ -122,6 +138,20 @@ final class DownloadManager {
         task.cancel()
     }
 
+    func retry(_ task: DownloadTask) {
+        guard case .failed = task.status else { return }
+        task.status = .queued
+        task.percent = 0
+        task.speed = ""
+        task.eta = ""
+        task.fileURL = nil
+        pumpQueue()
+    }
+
+    func clearCompleted() {
+        tasks.removeAll { $0.status == .completed }
+    }
+
     func reveal(_ task: DownloadTask) {
         if let fileURL = task.fileURL, FileManager.default.fileExists(atPath: fileURL.path) {
             NSWorkspace.shared.activateFileViewerSelecting([fileURL])
@@ -133,7 +163,9 @@ final class DownloadManager {
     private func start(_ task: DownloadTask) async {
         do {
             if task.videoInfo == nil {
-                task.videoInfo = try await service.fetchInfo(url: task.url)
+                task.videoInfo = try await service.fetchInfo(url: task.url) { process in
+                    Task { @MainActor in task.process = process }
+                }
             }
             guard task.status == .fetchingInfo else { return }
             task.status = .downloading

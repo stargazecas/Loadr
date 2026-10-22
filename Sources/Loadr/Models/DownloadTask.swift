@@ -1,6 +1,7 @@
 import Foundation
 
 enum DownloadStatus: Equatable {
+    case queued
     case fetchingInfo
     case downloading
     case completed

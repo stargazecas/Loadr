@@ -4,6 +4,7 @@ struct DownloadRowView: View {
     let task: DownloadTask
     let onCancel: () -> Void
     let onReveal: () -> Void
+    let onRetry: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -36,7 +37,7 @@ struct DownloadRowView: View {
 
             Spacer()
 
-            if task.status == .downloading || task.status == .fetchingInfo {
+            if task.status == .downloading || task.status == .fetchingInfo || task.status == .queued {
                 Button(action: onCancel) {
                     Image(systemName: "xmark.circle.fill")
                         .imageScale(.large)
@@ -52,6 +53,14 @@ struct DownloadRowView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .help("Ver archivo")
+            } else if case .failed = task.status {
+                Button(action: onRetry) {
+                    Image(systemName: "arrow.clockwise.circle.fill")
+                        .imageScale(.large)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Reintentar")
             }
         }
         .padding(.vertical, 4)
@@ -78,6 +87,8 @@ struct DownloadRowView: View {
     @ViewBuilder
     private var statusText: some View {
         switch task.status {
+        case .queued:
+            Text("En cola")
         case .fetchingInfo:
             Text("Obteniendo información…")
         case .downloading:
@@ -89,7 +100,7 @@ struct DownloadRowView: View {
         case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
-                .lineLimit(1)
+                .lineLimit(3)
         }
     }
 
