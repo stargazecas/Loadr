@@ -5,211 +5,423 @@
 [![Release](https://img.shields.io/github/v/release/stargazecas/Loadr?label=versi%C3%B3n)](https://github.com/stargazecas/Loadr/releases/latest)
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-000000?logo=apple)
 ![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
+[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue)](LICENSE)
 
-Interfaz nativa de macOS para [yt-dlp](https://github.com/yt-dlp/yt-dlp), escrita en SwiftUI.
-Pegas la URL de un video, eliges calidad y formato, y Loadr se encarga de llamar a yt-dlp,
-mostrar el progreso y dejar el archivo en `~/Downloads/Loadr`.
+Interfaz gráfica nativa de macOS para [yt-dlp](https://github.com/yt-dlp/yt-dlp), escrita en SwiftUI.
+Pega una URL, elige la calidad y descarga. Sin Terminal.
 
-Loadr no descarga nada por sí misma: es una capa visual sobre `yt-dlp` y `ffmpeg`. Funciona con
-cualquier sitio que soporte yt-dlp.
-
-> Descarga únicamente contenido que tengas derecho a descargar y respeta los términos de uso de cada sitio.
+---
 
 ## Contenido
 
 - [Características](#características)
-- [Requisitos](#requisitos)
 - [Instalación](#instalación)
-- [Uso](#uso)
+- [Guía de uso](#guía-de-uso)
+- [Opciones de calidad y formato](#opciones-de-calidad-y-formato)
+- [Playlists](#playlists)
+- [Idioma](#idioma)
+- [Limpieza automática de URLs](#limpieza-automática-de-urls)
+- [Dónde se guardan los archivos](#dónde-se-guardan-los-archivos)
 - [Solución de problemas](#solución-de-problemas)
-- [Compilar desde el código](#compilar-desde-el-código)
+- [Preguntas frecuentes](#preguntas-frecuentes)
+- [Compilar desde el código fuente](#compilar-desde-el-código-fuente)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Documentación técnica](#documentación-técnica)
 - [Roadmap](#roadmap)
+- [Licencia](#licencia)
+
+---
 
 ## Características
 
-- **Calidad:** mejor disponible, hasta 1080p, hasta 720p o solo audio (MP3).
-- **Formato de contenedor:** automático, MP4, MKV o WebM.
-- **Cola de descargas:** hasta 3 descargas simultáneas; el resto espera en cola y se atiende en orden.
-- **Progreso en tiempo real:** porcentaje, velocidad y tiempo restante.
-- **Playlists de YouTube:** descarga todos los videos en una subcarpeta con el nombre de la playlist o en la carpeta general.
-- **Errores legibles:** si algo falla, ves las últimas líneas de salida de yt-dlp y puedes reintentar.
-- **URLs limpias:** se eliminan parámetros de rastreo (`utm_*`, `si`, `fbclid`, …) antes de descargar.
-- **Inglés y español:** la interfaz cambia de idioma al instante desde Ajustes.
-- **Ajustes persistentes:** calidad, formato e idioma se recuerdan entre sesiones.
+- Descarga videos pegando simplemente la URL.
+- Vista previa antes de descargar: título, miniatura y duración.
+- Selector de calidad: mejor calidad, 1080p, 720p o solo audio (MP3).
+- Selector de formato de video: automático, MP4, MKV o WebM.
+- Progreso en tiempo real con porcentaje, velocidad y tiempo restante.
+- Cola de descargas: hasta 3 a la vez; el resto espera su turno.
+- Cancelación de descargas y botón para reintentar las fallidas o canceladas.
+- Botón para mostrar el archivo descargado en Finder.
+- Soporte de playlists de YouTube, con opción de carpeta propia.
+- Limpieza automática de parámetros de rastreo en las URLs.
+- Interfaz en español e inglés, con cambio de idioma al instante.
+- La calidad, el formato y el idioma elegidos se recuerdan entre sesiones.
 
-## Requisitos
+Loadr no implementa la descarga por sí mismo: delega todo en `yt-dlp` y `ffmpeg`.
+Por eso funciona con los sitios que `yt-dlp` soporte.
 
-| Requisito | Versión |
-| --- | --- |
-| macOS | 15 Sequoia o superior (Apple Silicon o Intel) |
-| [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Reciente; YouTube cambia a menudo y las versiones viejas dejan de funcionar |
-| [ffmpeg](https://ffmpeg.org) | Cualquiera; se usa para unir video + audio y para convertir a MP3 |
+---
 
-Ambas herramientas se instalan con [Homebrew](https://brew.sh):
+## Instalación
+
+### 1. Instala las dependencias
+
+Loadr necesita [yt-dlp](https://github.com/yt-dlp/yt-dlp) y [ffmpeg](https://ffmpeg.org).
+La forma más sencilla es con [Homebrew](https://brew.sh):
 
 ```sh
 brew install yt-dlp ffmpeg
 ```
 
-Loadr las busca en `/opt/homebrew/bin` (Apple Silicon), `/usr/local/bin` (Intel) y dentro del propio
-bundle de la app. Si falta alguna, la ventana muestra un aviso con un botón para copiar el comando
-de instalación.
+Loadr busca los programas en `/opt/homebrew/bin` (Apple Silicon) y `/usr/local/bin` (Intel).
+Si instalas `yt-dlp` o `ffmpeg` por otro método y Loadr no los encuentra, consulta
+[Solución de problemas](#solución-de-problemas).
 
-## Instalación
+### 2. Descarga la app
 
-1. Descarga `Loadr-x.y.z-macOS.zip` desde [Releases](https://github.com/stargazecas/Loadr/releases/latest).
-2. Descomprímelo y mueve `Loadr.app` a la carpeta **Aplicaciones**.
-3. Instala `yt-dlp` y `ffmpeg` si aún no los tienes (ver [Requisitos](#requisitos)).
+1. Ve a la página de [Releases](https://github.com/stargazecas/Loadr/releases).
+2. Descarga el archivo `Loadr-<versión>-macOS.zip` de la última versión.
+3. Descomprímelo y mueve `Loadr.app` a la carpeta **Aplicaciones**.
 
-### Primera apertura (Gatekeeper)
+### 3. Primer arranque (app sin firmar)
 
-Loadr todavía no está firmada con un certificado de Apple Developer ni notarizada, así que macOS la
-bloquea la primera vez. Desde macOS 15 ya no basta con clic derecho → Abrir; hay que autorizarla en
-Ajustes del Sistema:
+Las versiones publicadas **no están firmadas ni notarizadas por Apple**, así que macOS
+bloqueará la app la primera vez. Para abrirla, usa una de estas dos opciones:
 
-1. Abre `Loadr.app`. macOS mostrará un aviso de que no pudo verificar la app; ciérralo sin moverla a la papelera.
-2. Ve a **Ajustes del Sistema → Privacidad y seguridad** y baja hasta la sección **Seguridad**.
-3. En el aviso sobre Loadr, pulsa **Abrir igualmente** (*Open Anyway*) y confirma con tu contraseña o Touch ID.
+**Opción A: desde Ajustes del Sistema**
 
-Solo hace falta una vez. Si macOS dice que la app "está dañada", quítale la marca de cuarentena:
+1. Intenta abrir `Loadr.app`. macOS mostrará un aviso y la bloqueará.
+2. Abre **Ajustes del Sistema → Privacidad y seguridad**.
+3. Baja hasta la sección de seguridad y pulsa **Abrir igualmente** junto al aviso de Loadr.
+4. Confirma con tu contraseña o Touch ID.
+
+**Opción B: desde la Terminal**
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Loadr.app
 ```
 
-## Uso
+Solo hace falta hacerlo una vez. Si prefieres no confiar en un binario sin firmar,
+puedes [compilarlo tú mismo](#compilar-desde-el-código-fuente).
+
+---
+
+## Guía de uso
 
 ### Descargar un video
 
-1. Copia la URL del video y pégala en el campo de texto.
-2. Elige **Calidad** y **Formato** (se recuerdan para la próxima vez).
-3. Pulsa **Descargar** o Intro.
+1. Abre Loadr.
+2. Pega la URL del video en el campo superior.
+3. Elige la **calidad** y el **formato** (ver [opciones](#opciones-de-calidad-y-formato)).
+4. Pulsa **Descargar** o presiona **Enter**.
 
-Cada descarga aparece en la lista con su miniatura, duración y estado:
+Loadr añade la descarga a la lista. Primero muestra "Obteniendo información…" y después
+aparecen la miniatura, el título y la duración. Cuando empieza a descargar verás el
+porcentaje, la velocidad y el tiempo restante.
+
+> El botón **Descargar** solo se activa si el texto es una URL `http` o `https` válida.
+
+### Descargar varios videos
+
+Pega otra URL y vuelve a pulsar **Descargar** sin esperar a que termine la anterior.
+Loadr descarga hasta **3 videos a la vez**; los demás quedan "En cola" y empiezan en orden
+de llegada a medida que se libera un hueco. Las descargas más recientes aparecen arriba.
+
+### Cancelar y reintentar
+
+Pulsa la **✕** a la derecha de la fila para cancelar. La descarga se marca como "Cancelado".
+Si ya había empezado, es posible que quede un archivo parcial (`.part`) en la carpeta de
+destino; puedes borrarlo manualmente.
+
+Las descargas canceladas o fallidas muestran el botón **↻**. Púlsalo para volver a ponerlas
+en la cola.
+
+### Ver el archivo descargado
+
+Cuando una descarga termina aparece el icono de carpeta. Púlsalo para mostrar el archivo
+en Finder. Si Loadr no puede localizar el archivo, abre la carpeta `Downloads/Loadr`.
+
+El botón de **papelera** de la barra superior quita de la lista las descargas completadas
+(los archivos no se borran).
+
+### Estados de una descarga
 
 | Estado | Significado |
 | --- | --- |
-| En cola | Esperando turno (ya hay 3 descargas activas). |
-| Obteniendo información… | yt-dlp está leyendo título, miniatura y duración. |
-| 42.0% | Descargando; a la derecha, velocidad y tiempo restante. |
-| Completado | Listo. El botón de carpeta lo muestra en Finder. |
-| Cancelado / error | Se puede reintentar con el botón ↻. |
+| En cola | Esperando turno: ya hay 3 descargas en curso. |
+| Obteniendo información… | Loadr está consultando título, miniatura y duración. |
+| Porcentaje + velocidad + tiempo restante | Descarga en curso. |
+| Completado | El archivo está listo. |
+| Cancelado | La cancelaste. Se puede reintentar. |
+| Mensaje en rojo | La descarga falló. El mensaje procede de `yt-dlp`. Se puede reintentar. |
 
-El botón de papelera de la barra superior quita de la lista las descargas completadas (los archivos no se borran).
+---
 
-### Calidad y formato
+## Opciones de calidad y formato
 
-| Opción | Qué pide a yt-dlp |
+### Calidad
+
+| Opción | Qué hace |
 | --- | --- |
-| Mejor calidad | El mejor video + el mejor audio disponibles (`bv*+ba/b`). |
-| 1080p / 720p | El mejor video **hasta** esa altura, más el mejor audio. |
-| Solo audio (MP3) | Solo la pista de audio, convertida a MP3 con ffmpeg. |
+| **Mejor calidad** | La mejor combinación de video y audio disponible. |
+| **1080p** | Hasta 1080p de altura. Si el sitio no ofrece ese tamaño, usa el mejor inferior. |
+| **720p** | Igual, con tope en 720p. |
+| **Solo audio (MP3)** | Descarga solo el audio y lo convierte a MP3. |
 
-**Formato** define el contenedor del archivo final cuando yt-dlp une video y audio. *Automático*
-deja que yt-dlp elija; MP4 es el más compatible con QuickTime y Fotos. Con *Solo audio* el selector
-de formato se desactiva porque el resultado siempre es MP3.
+### Formato de video
 
-### Playlists
+| Opción | Qué hace |
+| --- | --- |
+| **Automático** | `yt-dlp` decide el contenedor según los streams descargados. |
+| **MP4** | Fuerza el contenedor MP4. El más compatible con reproductores y editores. |
+| **MKV** | Contenedor Matroska. Admite casi cualquier combinación de códecs. |
+| **WebM** | Contenedor WebM. Funciona bien con streams VP9/Opus; con otros códecs puede no ser posible. |
 
-Pega el enlace de la playlist (`https://www.youtube.com/playlist?list=…`). Loadr lista sus videos y
+Con **Solo audio (MP3)** el selector de formato se desactiva, porque la salida siempre es MP3.
+
+Tu elección de calidad y formato se guarda y se aplica la próxima vez que abras la app.
+
+> Para usar **ffmpeg** en la fusión de video y audio, es imprescindible tenerlo instalado.
+> Sin él, la mayoría de descargas de máxima calidad fallarán.
+
+---
+
+## Playlists
+
+Si pegas la URL de una playlist de YouTube (una dirección del tipo
+`youtube.com/playlist?list=…`), Loadr muestra un aviso con el número de videos y te
 pregunta dónde guardarlos:
 
-- **Carpeta "Nombre de la playlist"**: crea una subcarpeta dentro de `~/Downloads/Loadr`.
-- **Carpeta general**: los guarda directamente en `~/Downloads/Loadr`.
+- **Carpeta con el nombre de la playlist**: crea una subcarpeta dentro de `Downloads/Loadr`.
+  Los caracteres `/` y `:` del título se sustituyen por `-`.
+- **Carpeta general**: guarda todo directamente en `Downloads/Loadr`.
+- **Cancelar**: no descarga nada.
 
-Los videos entran en la cola en el orden de la playlist. Un enlace de video que incluye `&list=…`
-descarga solo ese video.
+Después, cada video se añade a la lista como una descarga independiente, con su miniatura,
+su duración y la calidad y el formato que tengas seleccionados en ese momento. Los videos
+entran en la cola en el orden de la playlist y se descargan de 3 en 3.
 
-### Idioma
+**Importante:** solo se detectan como playlist las URLs que apuntan a `/playlist`. Si pegas
+la URL de un video que además incluye `&list=…` (por ejemplo, un video abierto desde dentro
+de una playlist), Loadr descarga **solo ese video**.
 
-Abre **Loadr → Ajustes…** (⌘,) y elige el idioma:
+---
 
-- **Sistema**: usa el idioma de macOS si es inglés o español; en cualquier otro caso, inglés.
+## Idioma
+
+Loadr está en español e inglés. Para cambiarlo, abre **Loadr → Ajustes…** (⌘,) y elige:
+
+- **Sistema**: usa el idioma de macOS si es español o inglés; si no, inglés.
 - **English** o **Español**: fija ese idioma.
 
-La ventana cambia en el momento. La barra de menús (Archivo, Edición, …) la dibuja macOS y adopta
-el nuevo idioma la próxima vez que abras Loadr.
+La ventana cambia en el momento. La barra de menús (Archivo, Edición…) la dibuja macOS y
+adopta el nuevo idioma la próxima vez que abras Loadr.
 
-### Dónde se guardan los archivos
+---
 
-En `~/Downloads/Loadr` (en Finder aparece como *Descargas/Loadr* si tu Mac está en español). El
-nombre del archivo es el título del video. Si ya existe un archivo con ese nombre, yt-dlp no lo
-vuelve a descargar.
+## Limpieza automática de URLs
+
+Antes de descargar, Loadr elimina los parámetros de rastreo de la URL que pegas:
+
+- **YouTube** (`youtube.com`, `youtu.be`, `youtube-nocookie.com`): conserva solo lo necesario
+  (`v`, `t` y `list`; en `youtu.be`, solo `t`) y descarta el resto, como `si` o `feature`.
+- **Otros sitios**: elimina `utm_*`, `si`, `igsh`, `fbclid`, `gclid`, `dclid`, `mc_cid` y `mc_eid`.
+
+No tienes que hacer nada: ocurre de forma automática y no cambia el video que se descarga.
+
+---
+
+## Dónde se guardan los archivos
+
+```
+~/Downloads/Loadr/
+├── Mi video.mp4
+├── Otro video.mkv
+└── Nombre de la playlist/
+    ├── Video 1.mp4
+    └── Video 2.mp4
+```
+
+En Finder la carpeta aparece como **Descargas/Loadr** si tu Mac está en español.
+Los archivos se nombran con el título del video (`%(title)s.%(ext)s`); si ya existe uno con
+ese nombre, `yt-dlp` no lo vuelve a descargar.
+Por ahora la carpeta de destino no se puede cambiar desde la app.
+
+---
 
 ## Solución de problemas
 
-| Síntoma | Solución |
-| --- | --- |
-| Aviso "Faltan herramientas" | Ejecuta `brew install yt-dlp ffmpeg` y pulsa **Comprobar de nuevo**. Loadr solo busca en las rutas de Homebrew; si instalaste yt-dlp de otra forma (pip, MacPorts…), instálalo con Homebrew. |
-| Una descarga de YouTube que antes funcionaba ahora falla | Casi siempre es yt-dlp desactualizado: `brew upgrade yt-dlp`. |
-| El error muestra texto de yt-dlp en inglés | Es la salida original de yt-dlp; Loadr la muestra tal cual para no perder detalle. |
-| El video se descarga sin audio o en dos archivos | Falta ffmpeg o no está en las rutas que busca Loadr. Comprueba con `which ffmpeg`. |
-| macOS no deja abrir la app | Sigue los pasos de [Primera apertura](#primera-apertura-gatekeeper). |
-| La barra de menús sigue en el idioma anterior | Es normal: cierra Loadr (⌘Q) y vuelve a abrirla. |
+### Aparece el aviso amarillo "Faltan herramientas"
 
-## Compilar desde el código
+Significa que Loadr no encuentra `yt-dlp` y/o `ffmpeg`.
 
-Necesitas Xcode 16 o superior y [XcodeGen](https://github.com/yonaskolb/XcodeGen). El proyecto de
-Xcode se genera a partir de `project.yml`.
+1. Pulsa **Copiar comando** y pégalo en la Terminal:
+
+   ```sh
+   brew install yt-dlp ffmpeg
+   ```
+
+2. Vuelve a Loadr y pulsa **Comprobar de nuevo**.
+
+Si ya los tienes instalados, comprueba dónde están:
 
 ```sh
-brew install xcodegen
+which yt-dlp ffmpeg
+```
+
+Loadr solo busca en `/opt/homebrew/bin` y `/usr/local/bin` (o dentro del propio paquete de
+la app). Si están en otra ruta, instálalos con Homebrew o crea un enlace simbólico en una de
+esas carpetas.
+
+### Una descarga falla con un error de "HTTP 403", "unable to extract" o similar
+
+Casi siempre es `yt-dlp` desactualizado: los sitios cambian a menudo y `yt-dlp` publica
+arreglos con frecuencia. Actualízalo y pulsa **↻** para reintentar:
+
+```sh
+brew upgrade yt-dlp
+```
+
+### Falla al combinar video y audio
+
+Comprueba que `ffmpeg` funciona:
+
+```sh
+ffmpeg -version
+```
+
+Si no responde, reinstálalo con `brew reinstall ffmpeg`. Si el error aparece solo con el
+formato **WebM**, prueba con **MKV** o **Automático**.
+
+### El video es privado, requiere inicio de sesión o tiene restricción de edad
+
+Loadr no gestiona cuentas ni cookies, así que no puede descargar contenido que exija
+iniciar sesión.
+
+### macOS dice que la app "está dañada" o "no se puede abrir"
+
+Es el bloqueo normal de las apps sin firmar. Sigue los pasos de
+[Primer arranque](#3-primer-arranque-app-sin-firmar).
+
+### El mensaje de error de una descarga fallida aparece cortado
+
+Loadr guarda las últimas líneas que escribió `yt-dlp` y la fila muestra hasta tres. Si
+necesitas ver el error completo, ejecuta la misma URL en la Terminal con `yt-dlp <url>`.
+Esos mensajes vienen de `yt-dlp` y suelen estar en inglés aunque la app esté en español.
+
+### La barra de menús sigue en el idioma anterior
+
+Es normal: cierra Loadr (⌘Q) y vuelve a abrirla. Ver [Idioma](#idioma).
+
+---
+
+## Preguntas frecuentes
+
+**¿Qué sitios soporta?**
+Todos los que soporte `yt-dlp`. Consulta su
+[lista de sitios](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
+La detección de playlists, eso sí, funciona solo con YouTube.
+
+**¿Funciona en Intel y en Apple Silicon?**
+Sí, se buscan las herramientas en las rutas de Homebrew de ambas arquitecturas.
+
+**¿Puedo descargar solo el audio?**
+Sí: elige **Solo audio (MP3)** en el selector de calidad.
+
+**¿Cuántas descargas hace a la vez?**
+Tres. El resto espera en cola y empieza solo cuando termina alguna.
+
+**¿Puedo usar Loadr en inglés?**
+Sí, en **Ajustes** (⌘,). Ver [Idioma](#idioma).
+
+**¿Puedo cambiar la carpeta de destino?**
+Todavía no. Está en el [Roadmap](#roadmap).
+
+**¿Loadr envía mis datos a algún sitio?**
+Loadr no tiene servidores propios ni telemetría. Las peticiones las hace `yt-dlp` directamente
+al sitio de origen, y la miniatura se carga desde la URL que ese sitio proporciona.
+
+---
+
+## Compilar desde el código fuente
+
+### Requisitos
+
+- macOS 15 o superior.
+- Xcode 16 o superior.
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen):
+
+  ```sh
+  brew install xcodegen
+  ```
+
+- `yt-dlp` y `ffmpeg` para ejecutar la app (ver [Instalación](#1-instala-las-dependencias)).
+
+### Pasos
+
+```sh
 git clone https://github.com/stargazecas/Loadr.git
 cd Loadr
 xcodegen
-open Loadr.xcodeproj          # y pulsa Run (⌘R)
-```
-
-O desde la terminal:
-
-```sh
 xcodebuild -scheme Loadr -configuration Debug build
 ```
 
-Si añades, mueves o borras archivos, vuelve a ejecutar `xcodegen` para actualizar `Loadr.xcodeproj`.
+También puedes abrir `Loadr.xcodeproj` en Xcode y pulsar **Run** (⌘R).
+
+La configuración del proyecto vive en `project.yml`. Si cambias archivos o ajustes,
+vuelve a ejecutar `xcodegen` para regenerar el `.xcodeproj`.
+
+### Publicar una versión
+
+El workflow de GitHub Actions (`.github/workflows/release.yml`) compila y publica una release
+automáticamente cuando se sube una etiqueta que empiece por `v`. Los pasos completos (subir
+la versión, changelog, etiqueta) están en [docs/publicar-version.md](docs/publicar-version.md).
+
+---
 
 ## Estructura del proyecto
 
 ```
 Loadr/
 ├── project.yml                     Definición del proyecto para XcodeGen
-├── Config/Info.plist               Claves extra de Info.plist (idiomas soportados)
+├── Config/Info.plist               Idiomas que declara la app (en, es)
 ├── Sources/Loadr/
 │   ├── LoadrApp.swift              Punto de entrada: ventana principal y Ajustes
 │   ├── Localization/
 │   │   ├── LanguageSettings.swift  Preferencia de idioma y detección del idioma del sistema
-│   │   └── L10n.swift              Todos los textos de la interfaz, en inglés y español
+│   │   └── L10n.swift              Todos los textos de la interfaz, en español e inglés
 │   ├── Models/
-│   │   ├── DownloadManager.swift   Cola, playlists, limpieza de URLs, carpeta de destino
-│   │   └── DownloadTask.swift      Estado observable de una descarga
+│   │   ├── DownloadTask.swift      Modelo de una descarga individual
+│   │   └── DownloadManager.swift   Cola de descargas, ajustes y lógica de playlists
 │   ├── Services/
-│   │   └── YTDLPService.swift      Lanza yt-dlp y convierte su salida en eventos
+│   │   └── YTDLPService.swift      Wrapper de yt-dlp (procesos, parseo de salida)
 │   └── Views/
 │       ├── ContentView.swift       Ventana principal
 │       ├── DownloadRowView.swift   Fila de cada descarga
 │       └── SettingsView.swift      Ventana de Ajustes
 ├── docs/                           Documentación técnica
-└── .github/workflows/release.yml   Compila y publica un release al subir un tag v*
+└── .github/workflows/release.yml   Compila y publica una release al subir un tag v*
 ```
+
+La app delega toda la descarga en el binario de `yt-dlp` y parsea su salida estándar para
+mostrar el progreso.
+
+---
 
 ## Documentación técnica
 
-- [Arquitectura](docs/arquitectura.md): componentes, ciclo de vida de una descarga, cómo se llama a yt-dlp y cómo se parsea su salida.
+- [Arquitectura](docs/arquitectura.md): componentes, ciclo de vida de una descarga, cómo se llama a `yt-dlp` y cómo se interpreta su salida.
 - [Idiomas](docs/idiomas.md): cómo funciona el cambio de idioma y cómo añadir o modificar textos.
-- [Publicar una versión](docs/publicar-version.md): pasos para sacar un release.
+- [Publicar una versión](docs/publicar-version.md): pasos para sacar una release.
 - [Registro de cambios](CHANGELOG.md).
+
+---
 
 ## Roadmap
 
+- Número de descargas simultáneas configurable.
 - Selector de carpeta de destino.
-- Progreso con `--progress-template` en lugar de parsear el texto de yt-dlp.
-- Firma con Developer ID y notarización.
 - Historial de descargas.
 - Pegado automático desde el portapapeles.
-- Port para Android.
+
+---
+
+Loadr es una herramienta únicamente creada para descargar, no me hago responsable
+del tipo de contenido que decidas obtener con él, ni tampoco me interesa.
+Sé libre.
+
+---
 
 ## Licencia
 
-Pendiente de definir.
+Distribuido bajo la licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más información.
