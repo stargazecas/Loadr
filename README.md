@@ -13,6 +13,9 @@ Pega una URL, elige la calidad y descarga. Sin Terminal.
 
 ---
 
+<img width="1174" height="801" alt="Captura de pantalla 2026-10-28 a la(s) 5 46 03 p m" src="https://github.com/user-attachments/assets/0768ee0e-200c-48d9-91e3-e6dc13876179" />
+
+
 ## Contenido
 
 - [Características](#características)
