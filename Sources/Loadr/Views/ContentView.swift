@@ -1,14 +1,17 @@
 import AppKit
+import Combine
 import SwiftUI
 
 struct ContentView: View {
-    @State private var manager = DownloadManager()
+    @Bindable var manager: DownloadManager
     @State private var urlString = ""
+    /// Último `changeCount` del portapapeles revisado, para no volver a pegar el mismo enlace.
+    @State private var lastClipboardChange = -1
 
-    private var isValidURL: Bool {
-        guard let url = URL(string: urlString.trimmingCharacters(in: .whitespaces)),
-              let scheme = url.scheme?.lowercased() else { return false }
-        return scheme == "http" || scheme == "https"
+    private var settings: AppSettings { .shared }
+
+    private var trimmedURL: String {
+        urlString.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var body: some View {
@@ -31,7 +34,7 @@ struct ContentView: View {
                 .fixedSize()
                 .disabled(manager.quality == .audio)
                 Button(L10n.download, action: addDownload)
-                    .disabled(!isValidURL)
+                    .disabled(!WebURL.isValid(trimmedURL))
                     .keyboardShortcut(.defaultAction)
                 if manager.tasks.contains(where: { $0.status == .completed }) {
                     Button {
@@ -68,7 +71,7 @@ struct ContentView: View {
                 ContentUnavailableView {
                     Label(L10n.noDownloads, systemImage: "arrow.down.circle")
                 } description: {
-                    Text(L10n.emptyStateDescription(folder: manager.outputFolderDisplayPath))
+                    Text(L10n.emptyStateDescription(folder: FolderPicker.displayPath(for: settings.downloadFolder)))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -97,11 +100,37 @@ struct ContentView: View {
         } message: { playlist in
             Text(L10n.playlistMessage(count: playlist.entries.count))
         }
+        .sheet(isPresented: Binding(
+            get: { !settings.hasCompletedOnboarding },
+            set: { if !$0 { settings.hasCompletedOnboarding = true } }
+        )) {
+            OnboardingView()
+        }
+        .onAppear(perform: pasteFromClipboardIfNeeded)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            pasteFromClipboardIfNeeded()
+        }
+        .onChange(of: settings.hasCompletedOnboarding) {
+            pasteFromClipboardIfNeeded()
+        }
     }
 
     private func addDownload() {
-        guard isValidURL else { return }
-        manager.add(url: urlString.trimmingCharacters(in: .whitespaces))
+        guard WebURL.isValid(trimmedURL) else { return }
+        manager.add(url: trimmedURL)
         urlString = ""
+    }
+
+    /// Pegado automático: si el portapapeles cambió desde la última vez y contiene un enlace,
+    /// lo pone en el campo de URL. Nunca pisa lo que el usuario esté escribiendo.
+    private func pasteFromClipboardIfNeeded() {
+        guard settings.autoPasteURLs, settings.hasCompletedOnboarding, trimmedURL.isEmpty else { return }
+        let changeCount = NSPasteboard.general.changeCount
+        guard changeCount != lastClipboardChange else { return }
+        lastClipboardChange = changeCount
+        Task {
+            guard let url = await ClipboardReader.copiedWebURL(), trimmedURL.isEmpty else { return }
+            urlString = url
+        }
     }
 }

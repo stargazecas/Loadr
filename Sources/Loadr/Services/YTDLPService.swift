@@ -49,6 +49,8 @@ enum DownloadError: Error, Equatable, Sendable {
     case invalidResponse
     /// La playlist no contiene ningún video.
     case emptyPlaylist
+    /// No se pudo crear o escribir la carpeta de destino.
+    case folderUnavailable(String)
     /// yt-dlp terminó con error sin escribir nada.
     case exitCode(Int32)
     /// Últimas líneas de salida de yt-dlp (se muestran tal cual, normalmente en inglés).
@@ -68,14 +70,12 @@ enum DownloadError: Error, Equatable, Sendable {
 }
 
 struct YTDLPService: Sendable {
-    struct Progress: Sendable {
-        let percent: Double
-        let speed: String
-        let eta: String
-    }
-
     enum DownloadEvent: Sendable {
-        case progress(Progress)
+        /// Progreso de la descarga, con todas las pistas sumadas.
+        case progress(TransferProgress)
+        /// Ya se descargó todo; yt-dlp está uniendo las pistas o convirtiendo el audio.
+        case processing
+        /// Ruta definitiva del archivo, después de unir, convertir y mover.
         case file(URL)
     }
 
@@ -161,26 +161,23 @@ struct YTDLPService: Sendable {
             process.standardOutput = pipe
             process.standardError = pipe
 
-            let lines = LineBuffer()
+            let parser = DownloadOutputParser()
             pipe.fileHandleForReading.readabilityHandler = { handle in
-                let chunk = String(data: handle.availableData, encoding: .utf8) ?? ""
-                for line in lines.append(chunk) {
-                    if let progress = Self.parseProgress(line) {
-                        continuation.yield(.progress(progress))
-                    } else if let file = Self.parseDestination(line) {
-                        continuation.yield(.file(file))
-                    }
+                for event in parser.consume(handle.availableData) {
+                    continuation.yield(event)
                 }
             }
 
             process.terminationHandler = { process in
                 pipe.fileHandleForReading.readabilityHandler = nil
-                let tail = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-                lines.append(tail)
+                let remaining = parser.consume(pipe.fileHandleForReading.readDataToEndOfFile()) + parser.flush()
+                for event in remaining {
+                    continuation.yield(event)
+                }
                 if process.terminationReason == .exit && process.terminationStatus == 0 {
                     continuation.finish()
                 } else {
-                    continuation.finish(throwing: DownloadError.processFailed(output: lines.recentText, status: process.terminationStatus))
+                    continuation.finish(throwing: DownloadError.processFailed(output: parser.errorText, status: process.terminationStatus))
                 }
             }
 
@@ -199,6 +196,12 @@ struct YTDLPService: Sendable {
             "--newline",
             "--no-playlist",
             "--no-colors",
+            // --print implica --quiet: --progress mantiene el progreso y --no-simulate, la descarga.
+            "--progress",
+            "--no-simulate",
+            "--progress-template", "download:" + OutputProtocol.progressTemplate,
+            "--print", "before_dl:" + OutputProtocol.formatsTemplate,
+            "--print", "after_move:" + OutputProtocol.fileTemplate,
             "-f", quality.ytdlpFormat,
             "-o", outputFolder.path + "/%(title)s.%(ext)s",
         ]
@@ -212,31 +215,6 @@ struct YTDLPService: Sendable {
         }
         args.append(url)
         return args
-    }
-
-    private static func parseDestination(_ line: String) -> URL? {
-        for prefix in ["[download] Destination: ", "[ExtractAudio] Destination: "] where line.hasPrefix(prefix) {
-            let path = String(line.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
-            return URL(fileURLWithPath: path)
-        }
-        let mergerPrefix = "[Merger] Merging formats into \""
-        if line.hasPrefix(mergerPrefix) {
-            var path = String(line.dropFirst(mergerPrefix.count))
-            if path.hasSuffix("\"") { path.removeLast() }
-            return URL(fileURLWithPath: path)
-        }
-        return nil
-    }
-
-    private static func parseProgress(_ line: String) -> Progress? {
-        // yt-dlp alinea los tamaños a 10 caracteres: "of   12.34MiB", "of ~  83.62MiB", "at    512.00B/s".
-        let pattern = #/\[download\]\s+([\d.]+)% of\s+~?\s*[\d.]+ ?(?:[KMGTPE]i)?B at\s+([\d.]+ ?(?:[KMGTPE]i)?B/s|Unknown B/s).*ETA\s+([\d:]+)/#
-        guard let match = line.firstMatch(of: pattern) else { return nil }
-        return Progress(
-            percent: Double(match.output.1) ?? 0,
-            speed: String(match.output.2),
-            eta: String(match.output.3)
-        )
     }
 
     private func runAndCollect(arguments: [String], onLaunch: @escaping @Sendable (Process) -> Void = { _ in }) async throws -> String {
@@ -253,16 +231,8 @@ struct YTDLPService: Sendable {
                 buffer.append(handle.availableData)
             }
 
-            onLaunch(process)
-
-            do {
-                try process.run()
-            } catch {
-                pipe.fileHandleForReading.readabilityHandler = nil
-                continuation.resume(throwing: error)
-                return
-            }
-
+            // Se asigna antes de `run()`: si yt-dlp terminara al instante, un manejador puesto
+            // después no llegaría a ejecutarse y la tarea se quedaría esperando para siempre.
             process.terminationHandler = { process in
                 pipe.fileHandleForReading.readabilityHandler = nil
                 buffer.append(pipe.fileHandleForReading.readDataToEndOfFile())
@@ -273,38 +243,17 @@ struct YTDLPService: Sendable {
                     continuation.resume(throwing: DownloadError.processFailed(output: text, status: process.terminationStatus))
                 }
             }
-        }
-    }
-}
 
-private final class LineBuffer: @unchecked Sendable {
-    private let lock = NSLock()
-    private var pending = ""
-    private var recent: [String] = []
-    private let maxRecent = 8
+            onLaunch(process)
 
-    var recentText: String {
-        lock.lock()
-        defer { lock.unlock() }
-        return recent.joined(separator: "\n")
-    }
-
-    @discardableResult
-    func append(_ chunk: String) -> [String] {
-        lock.lock()
-        defer { lock.unlock() }
-        pending += chunk
-        var lines: [String] = []
-        while let newline = pending.firstIndex(of: "\n") {
-            let line = String(pending[..<newline])
-            pending.removeSubrange(...newline)
-            lines.append(line)
+            do {
+                try process.run()
+            } catch {
+                process.terminationHandler = nil
+                pipe.fileHandleForReading.readabilityHandler = nil
+                continuation.resume(throwing: error)
+            }
         }
-        recent.append(contentsOf: lines.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
-        if recent.count > maxRecent {
-            recent.removeFirst(recent.count - maxRecent)
-        }
-        return lines
     }
 }
 

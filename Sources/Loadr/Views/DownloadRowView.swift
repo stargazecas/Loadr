@@ -21,17 +21,17 @@ struct DownloadRowView: View {
                         Text(verbatim: "·")
                         Text(formatDuration(duration))
                     }
-                    if task.status == .downloading {
+                    if task.status == .downloading, let rate = rateText {
                         Spacer()
-                        Text(verbatim: "\(speed) · \(L10n.timeRemaining(task.eta))")
+                        Text(verbatim: rate)
                             .monospacedDigit()
                     }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-                if task.status == .downloading {
-                    ProgressView(value: min(task.percent, 100), total: 100)
+                if task.status == .downloading || task.status == .processing {
+                    progressBar
                 }
             }
 
@@ -47,14 +47,48 @@ struct DownloadRowView: View {
         return info.title ?? L10n.untitled
     }
 
-    private var speed: String {
-        task.speed == "Unknown B/s" ? "—" : task.speed
+    /// "7.6 MB / 108 MB (7 %)", o solo lo descargado si aún no se conoce el total.
+    private var transferText: String {
+        guard let progress = task.progress else { return L10n.starting }
+        let downloaded = progress.downloadedBytes.fileSizeText
+        guard let total = progress.totalBytes, let fraction = progress.fractionCompleted else {
+            return L10n.downloadedOnly(downloaded)
+        }
+        return L10n.transferProgress(
+            downloaded: downloaded,
+            total: (progress.totalIsEstimate ? "~" : "") + total.fileSizeText,
+            percent: fraction.formatted(.percent.precision(.fractionLength(0)))
+        )
+    }
+
+    /// "2.3 MB/s · quedan 0:42".
+    private var rateText: String? {
+        guard let progress = task.progress else { return nil }
+        var parts: [String] = []
+        if let speed = progress.bytesPerSecond {
+            parts.append(Int64(speed).fileSizeText + "/s")
+        }
+        if let remaining = progress.secondsRemaining {
+            parts.append(L10n.timeRemaining(formatDuration(Double(remaining))))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    @ViewBuilder
+    private var progressBar: some View {
+        if task.status == .downloading, let fraction = task.progress?.fractionCompleted {
+            ProgressView(value: fraction)
+        } else {
+            // Sin total conocido o mientras yt-dlp une/convierte: barra indeterminada.
+            ProgressView()
+                .progressViewStyle(.linear)
+        }
     }
 
     @ViewBuilder
     private var actionButton: some View {
         switch task.status {
-        case .queued, .fetchingInfo, .downloading:
+        case .queued, .fetchingInfo, .downloading, .processing:
             rowButton(systemImage: "xmark.circle.fill", help: L10n.cancelDownload, action: onCancel)
         case .completed:
             rowButton(systemImage: "folder.fill", help: L10n.showInFinder, action: onReveal)
@@ -99,8 +133,10 @@ struct DownloadRowView: View {
         case .fetchingInfo:
             Text(L10n.fetchingInfo)
         case .downloading:
-            Text(String(format: "%.1f%%", task.percent))
+            Text(transferText)
                 .monospacedDigit()
+        case .processing:
+            Text(L10n.processing)
         case .completed:
             Label(L10n.completed, systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
@@ -117,5 +153,12 @@ struct DownloadRowView: View {
         let total = Int(seconds)
         let h = total / 3600, m = (total % 3600) / 60, s = total % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
+    }
+}
+
+private extension Int64 {
+    /// Tamaño con las unidades de Finder (1 MB = 1 000 000 bytes): "7.6 MB".
+    var fileSizeText: String {
+        formatted(.byteCount(style: .file, spellsOutZero: false))
     }
 }

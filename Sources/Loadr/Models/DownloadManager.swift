@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Observation
 
 @Observable
 @MainActor
@@ -16,22 +17,22 @@ final class DownloadManager {
     }
 
     private let service = YTDLPService()
-    private let maxConcurrentDownloads = 3
+    private let settings = AppSettings.shared
     private var activeDownloads = 0
     private var queueCounter = 0
-    let outputFolder: URL
-
-    /// Ruta de destino tal como la muestra Finder en el idioma del sistema (p. ej. "Descargas/Loadr").
-    var outputFolderDisplayPath: String {
-        let parent = FileManager.default.displayName(atPath: outputFolder.deletingLastPathComponent().path)
-        return "\(parent)/\(outputFolder.lastPathComponent)"
-    }
+    @ObservationIgnored private var terminationObserver: (any NSObjectProtocol)?
 
     init() {
-        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
-        outputFolder = downloads.appendingPathComponent("Loadr", isDirectory: true)
-        try? FileManager.default.createDirectory(at: outputFolder, withIntermediateDirectories: true)
         checkTools()
+        observeConcurrencyLimit()
+        // Al salir de Loadr se detienen los yt-dlp en marcha para no dejar procesos huérfanos.
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.cancelAll() }
+        }
     }
 
     func checkTools() {
@@ -66,7 +67,7 @@ final class DownloadManager {
     }
 
     private func pumpQueue() {
-        while activeDownloads < maxConcurrentDownloads,
+        while activeDownloads < settings.maxConcurrentDownloads,
               let task = tasks.filter({ $0.status == .queued }).min(by: { $0.queuePosition < $1.queuePosition }) {
             activeDownloads += 1
             task.status = .fetchingInfo
@@ -74,6 +75,19 @@ final class DownloadManager {
                 await start(task)
                 activeDownloads -= 1
                 pumpQueue()
+            }
+        }
+    }
+
+    /// Si el usuario sube el límite en Ajustes, arranca enseguida las descargas en cola.
+    /// Si lo baja, las activas terminan y las nuevas esperan a que haya hueco.
+    private func observeConcurrencyLimit() {
+        withObservationTracking {
+            _ = settings.maxConcurrentDownloads
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.pumpQueue()
+                self?.observeConcurrencyLimit()
             }
         }
     }
@@ -96,17 +110,14 @@ final class DownloadManager {
         guard let pending = pendingPlaylist else { return }
         pendingPlaylist = nil
 
-        var folder: URL?
-        if subfolder {
-            let folderURL = outputFolder.appendingPathComponent(Self.sanitizeFolderName(pending.title), isDirectory: true)
-            try? FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-            folder = folderURL
-        }
+        let folder = subfolder
+            ? settings.downloadFolder.appendingPathComponent(Self.sanitizeFolderName(pending.title), isDirectory: true)
+            : nil
 
         let newTasks = pending.entries.map { info in
             let task = DownloadTask(url: info.url, quality: quality)
             task.videoInfo = info
-            task.outputFolder = folder
+            task.playlistFolder = folder
             markQueued(task)
             return task
         }
@@ -157,13 +168,18 @@ final class DownloadManager {
         task.cancel()
     }
 
+    private func cancelAll() {
+        for task in tasks where task.canCancel {
+            task.cancel()
+        }
+    }
+
     func retry(_ task: DownloadTask) {
         guard task.canRetry else { return }
         markQueued(task)
-        task.percent = 0
-        task.speed = ""
-        task.eta = ""
+        task.progress = nil
         task.fileURL = nil
+        task.outputFolder = nil
         pumpQueue()
     }
 
@@ -175,7 +191,7 @@ final class DownloadManager {
         if let fileURL = task.fileURL, FileManager.default.fileExists(atPath: fileURL.path) {
             NSWorkspace.shared.activateFileViewerSelecting([fileURL])
         } else {
-            NSWorkspace.shared.open(outputFolder)
+            FolderPicker.reveal(task.outputFolder ?? settings.downloadFolder)
         }
     }
 
@@ -187,25 +203,32 @@ final class DownloadManager {
                 }
             }
             guard task.status == .fetchingInfo else { return }
+
+            // La carpeta se decide al empezar: si cambia en Ajustes, afecta a lo que aún está en cola.
+            let folder = task.playlistFolder ?? settings.downloadFolder
+            do {
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            } catch {
+                throw DownloadError.folderUnavailable(folder.path)
+            }
+            task.outputFolder = folder
             task.status = .downloading
 
-            let folder = task.outputFolder ?? outputFolder
             let stream = service.download(url: task.url, quality: task.quality, container: container, outputFolder: folder) { process in
                 Task { @MainActor in task.process = process }
             }
             for try await event in stream {
-                guard task.status == .downloading else { return }
+                guard task.status == .downloading || task.status == .processing else { return }
                 switch event {
                 case .progress(let progress):
-                    task.percent = progress.percent
-                    task.speed = progress.speed
-                    task.eta = progress.eta
+                    task.progress = progress
+                case .processing:
+                    task.status = .processing
                 case .file(let url):
                     task.fileURL = url
                 }
             }
-            if task.status == .downloading {
-                task.percent = 100
+            if task.status == .downloading || task.status == .processing {
                 task.status = .completed
             }
         } catch {

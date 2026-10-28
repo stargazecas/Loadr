@@ -4,6 +4,8 @@ enum DownloadStatus: Equatable, Sendable {
     case queued
     case fetchingInfo
     case downloading
+    /// Ya se descargó todo y yt-dlp está uniendo las pistas o convirtiendo el audio.
+    case processing
     case completed
     case cancelled
     case failed(DownloadError)
@@ -18,16 +20,29 @@ final class DownloadTask: Identifiable {
     var quality: QualityOption
     var status: DownloadStatus = .fetchingInfo
     var queuePosition = 0
-    var percent: Double = 0
-    var speed = ""
-    var eta = ""
+    var progress: TransferProgress?
     var fileURL: URL?
+    /// Subcarpeta de la playlist, si el usuario la eligió; si no, se usa la carpeta de Ajustes.
+    var playlistFolder: URL?
+    /// Carpeta en la que se guarda el archivo, fijada al empezar la descarga.
     var outputFolder: URL?
     var process: Process?
 
     init(url: String, quality: QualityOption) {
         self.url = url
         self.quality = quality
+    }
+
+    /// Ocupa uno de los huecos de descargas simultáneas.
+    var isActive: Bool {
+        switch status {
+        case .fetchingInfo, .downloading, .processing: true
+        default: false
+        }
+    }
+
+    var canCancel: Bool {
+        status == .queued || isActive
     }
 
     var canRetry: Bool {
