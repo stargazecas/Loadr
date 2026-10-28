@@ -1,0 +1,16 @@
+name: Proponer una mejora / Feature request
+description: Una idea para Loadr. / An idea for Loadr.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: ¿Qué necesitas? / What do you need?
+      description: El problema o la situación, más que la solución. / The problem or situation, rather than the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: ¿Cómo te lo imaginas? / How do you picture it?
+      description: Opcional. / Optional.

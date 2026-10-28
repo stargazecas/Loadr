@@ -1,0 +1,7 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Error al extraer un sitio concreto / Site-specific extraction error
+    url: https://github.com/yt-dlp/yt-dlp/issues
+    about: >-
+      Si `yt-dlp <url>` en la Terminal falla igual, el problema es de yt-dlp: repórtalo allí.
+      If `yt-dlp <url>` fails the same way in Terminal, it's a yt-dlp issue: report it there.

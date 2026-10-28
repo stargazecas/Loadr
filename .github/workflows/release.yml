@@ -1,37 +1,82 @@
 name: Release
 
+# Al subir un tag vX.Y.Z: comprueba la versión, compila, firma ad hoc, empaqueta y publica la release
+# con las notas de CHANGELOG.md. Los pasos manuales están en docs/publicar-version.md.
 on:
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build:
+  release:
+    name: Publicar release
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Generate Xcode project
-        run: xcodegen
-
-      - name: Build Release
-        run: xcodebuild -scheme Loadr -configuration Release -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
-
-      - name: Package app
+      - name: Comprobar que el tag coincide con project.yml
+        id: version
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          mkdir -p build/dist
-          cd build/DerivedData/Build/Products/Release
-          ditto -c -k --sequesterRsrc --keepParent Loadr.app "$OLDPWD/build/dist/Loadr-${VERSION}-macOS.zip"
+          PROJECT_VERSION=$(sed -nE 's/^[[:space:]]*MARKETING_VERSION:[[:space:]]*"?([^"[:space:]]+)"?[[:space:]]*$/\1/p' project.yml)
+          if [ "$VERSION" != "$PROJECT_VERSION" ]; then
+            echo "::error file=project.yml::El tag es $GITHUB_REF_NAME pero MARKETING_VERSION es \"$PROJECT_VERSION\"."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Preparar las notas desde CHANGELOG.md
+        run: |
+          mkdir -p build
+          bash .github/scripts/release-notes.sh "${{ steps.version.outputs.version }}" > build/release-notes.md
+          cat build/release-notes.md
+
+      - name: Instalar XcodeGen
+        run: brew install xcodegen
+
+      - name: Generar el proyecto de Xcode
+        run: xcodegen
+
+      - name: Mostrar la versión de Xcode
+        run: xcodebuild -version
+
+      - name: Compilar en Release
+        run: |
+          xcodebuild build \
+            -scheme Loadr \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            -quiet \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Firmar ad hoc, empaquetar y calcular el checksum
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          APP=build/DerivedData/Build/Products/Release/Loadr.app
+          echo "Arquitecturas: $(lipo -archs "$APP/Contents/MacOS/Loadr")"
+          # Sin ninguna firma, macOS puede decir que la app "está dañada"; con firma ad hoc
+          # muestra el aviso de app no verificada, que se autoriza en Privacidad y seguridad.
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          mkdir -p build/dist
+          ZIP="Loadr-${VERSION}-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "build/dist/$ZIP"
+          (cd build/dist && shasum -a 256 "$ZIP" > "$ZIP.sha256" && cat "$ZIP.sha256")
+
+      - name: Publicar en GitHub
+        uses: softprops/action-gh-release@v3
         with:
-          files: build/dist/Loadr-*-macOS.zip
-          generate_release_notes: true
+          name: Loadr ${{ steps.version.outputs.version }}
+          body_path: build/release-notes.md
+          fail_on_unmatched_files: true
+          files: |
+            build/dist/Loadr-*-macOS.zip
+            build/dist/Loadr-*-macOS.zip.sha256

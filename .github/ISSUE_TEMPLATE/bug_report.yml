@@ -1,0 +1,53 @@
+name: Reportar un error / Bug report
+description: Algo no funciona como debería. / Something doesn't work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de abrir el reporte, actualiza yt-dlp (`brew upgrade yt-dlp`): la mayoría de errores
+        al descargar de un sitio concreto se arreglan así. Si persiste, cuéntanos qué pasó.
+
+        Before reporting, update yt-dlp (`brew upgrade yt-dlp`): most site-specific download errors
+        are fixed that way. If it still happens, tell us what went wrong.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: ¿Qué pasó? / What happened?
+      description: Qué hiciste, qué esperabas y qué ocurrió. / What you did, what you expected and what happened.
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Sitio o URL / Site or URL
+      description: Opcional. No compartas enlaces privados. / Optional. Don't share private links.
+  - type: textarea
+    id: error
+    attributes:
+      label: Mensaje de error / Error message
+      description: El texto en rojo de la fila, si lo hay. / The red text in the download row, if any.
+      render: text
+  - type: input
+    id: loadr-version
+    attributes:
+      label: Versión de Loadr / Loadr version
+      description: Loadr → Acerca de Loadr / Loadr → About Loadr
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: Versión de macOS / macOS version
+      placeholder: "macOS 26.1, Apple silicon"
+    validations:
+      required: true
+  - type: input
+    id: ytdlp-version
+    attributes:
+      label: Versión de yt-dlp / yt-dlp version
+      description: "`yt-dlp --version`"
+      placeholder: "2026.10.26"
+    validations:
+      required: true

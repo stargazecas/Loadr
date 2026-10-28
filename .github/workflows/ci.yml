@@ -1,0 +1,41 @@
+name: CI
+
+# Compila Loadr en cada push a main y en cada pull request, para detectar errores antes de publicar.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compilar (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Instalar XcodeGen
+        run: brew install xcodegen
+
+      - name: Generar el proyecto de Xcode
+        run: xcodegen
+
+      - name: Mostrar la versión de Xcode
+        run: xcodebuild -version
+
+      - name: Compilar
+        run: |
+          xcodebuild build \
+            -scheme Loadr \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            -quiet \
+            CODE_SIGNING_ALLOWED=NO
