@@ -6,6 +6,7 @@
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-000000?logo=apple)
 ![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![CI](https://github.com/stargazecas/Loadr/actions/workflows/ci.yml/badge.svg)](https://github.com/stargazecas/Loadr/actions/workflows/ci.yml)
 
 A native macOS front end for [yt-dlp](https://github.com/yt-dlp/yt-dlp), written in SwiftUI.
 Paste a URL, pick a quality and download. No Terminal needed.
@@ -17,6 +18,7 @@ Paste a URL, pick a quality and download. No Terminal needed.
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Settings](#settings)
 - [Quality and format options](#quality-and-format-options)
 - [Playlists](#playlists)
 - [Language](#language)
@@ -38,14 +40,17 @@ Paste a URL, pick a quality and download. No Terminal needed.
 - Preview before downloading: title, thumbnail and duration.
 - Quality picker: best quality, 1080p, 720p or audio only (MP3).
 - Video format picker: automatic, MP4, MKV or WebM.
-- Live progress with percentage, speed and time remaining.
-- Download queue: up to 3 at once; the rest wait their turn.
+- Live progress with downloaded and total size ("30.7 MB / 722.6 MB (4%)"), speed and time
+  remaining.
+- Download queue: 3 at once by default (configurable from 1 to 10); the rest wait their turn.
+- Configurable download folder.
+- Automatic paste: a link you copy is already in the URL field when you come back to Loadr.
 - Cancel downloads, and retry failed or canceled ones with one click.
 - Show the downloaded file in Finder.
 - YouTube playlist support, with an option to save into their own folder.
 - Tracking parameters are stripped from URLs automatically.
 - English and Spanish interface, switchable instantly.
-- Your quality, format and language choices are remembered between launches.
+- Your settings (quality, format, folder, language…) are remembered between launches.
 
 Loadr doesn't implement downloading itself: it hands everything to `yt-dlp` and `ffmpeg`.
 That's why it works with any site `yt-dlp` supports.
@@ -98,6 +103,16 @@ You only need to do this once. If you'd rather not trust an unsigned binary, you
 
 ## Usage
 
+### First launch
+
+The first time you open Loadr, a welcome screen asks for two settings:
+
+- **Where should downloads be saved?** `Downloads/Loadr` by default. Click **Change…** to pick
+  another folder.
+- **Paste links automatically**, on by default (see [Settings](#settings)).
+
+Click **Get Started**. You can change both anytime in **Loadr → Settings…** (⌘,).
+
 ### Downloading a video
 
 1. Open Loadr.
@@ -106,16 +121,21 @@ You only need to do this once. If you'd rather not trust an unsigned binary, you
 4. Click **Download** or press **Return**.
 
 Loadr adds the download to the list. It first shows "Fetching info…", then the thumbnail,
-title and duration appear. Once downloading starts you'll see the percentage, speed and
-time remaining.
+title and duration appear. While downloading you'll see how much is done and how big the file
+will be, for example **30.7 MB / 722.6 MB (4%)**, plus the speed and time remaining. If the site
+only allows estimating the size, the total shows a leading `~`.
+
+At the best quality, `yt-dlp` usually downloads video and audio separately and then merges them:
+Loadr adds both tracks into a single progress bar and shows "Processing…" while merging.
 
 > The **Download** button is only enabled when the text is a valid `http` or `https` URL.
 
 ### Downloading several videos
 
 Paste another URL and click **Download** again without waiting for the previous one.
-Loadr downloads up to **3 videos at once**; the rest are "Queued" and start in the order they
-were added as slots free up. The most recent downloads appear at the top.
+Loadr downloads up to **3 videos at once** (you can change that in [Settings](#settings)); the
+rest are "Queued" and start in the order they were added as slots free up. The most recent
+downloads appear at the top.
 
 ### Canceling and retrying
 
@@ -128,7 +148,7 @@ Canceled or failed downloads show a **↻** button. Click it to put them back in
 ### Viewing the downloaded file
 
 When a download finishes, a folder icon appears. Click it to show the file in Finder.
-If Loadr can't locate the file, it opens the `Downloads/Loadr` folder instead.
+If Loadr can't locate the file, it opens the download folder instead.
 
 The **trash** button in the top bar removes completed downloads from the list (the files
 stay on disk).
@@ -137,12 +157,33 @@ stay on disk).
 
 | State | Meaning |
 | --- | --- |
-| Queued | Waiting for a slot: 3 downloads are already running. |
+| Queued | Waiting for a slot: the simultaneous download limit has been reached. |
 | Fetching info… | Loadr is reading the title, thumbnail and duration. |
-| Percentage + speed + time remaining | Download in progress. |
+| 30.7 MB / 722.6 MB (4%) | Download in progress, with speed and time remaining on the right. |
+| Processing… | `yt-dlp` is merging video and audio or converting to MP3. |
 | Completed | The file is ready. |
 | Canceled | You canceled it. It can be retried. |
 | Red message | The download failed. The message comes from `yt-dlp`. It can be retried. |
+
+---
+
+## Settings
+
+Open **Loadr → Settings…** (⌘,).
+
+**General**
+
+- **Language**: System, English or Español (see [Language](#language)).
+- **Paste links automatically**: if you copy a video link and come back to Loadr, it's already in
+  the URL field; just click **Download**. It never replaces what you're typing and never pastes
+  the same link twice. Depending on your macOS version, the system may ask for permission to let
+  Loadr read the clipboard; to stop it asking, allow it in **System Settings → Privacy & Security**.
+
+**Downloads**
+
+- **Download folder**: where files are saved. **Show in Finder** opens it.
+- **Simultaneous downloads**: 1 to 10 (3 by default). Raising it starts queued downloads right
+  away; lowering it lets running ones finish while new ones wait.
 
 ---
 
@@ -180,14 +221,14 @@ Your quality and format choices are saved and applied the next time you open the
 If you paste a YouTube playlist URL (an address like `youtube.com/playlist?list=…`), Loadr
 shows a dialog with the number of videos and asks where to save them:
 
-- **Folder named after the playlist**: creates a subfolder inside `Downloads/Loadr`.
+- **Folder named after the playlist**: creates a subfolder inside your download folder.
   The characters `/` and `:` in the title are replaced with `-`.
-- **Main Folder**: saves everything straight into `Downloads/Loadr`.
+- **Main Folder**: saves everything straight into your download folder.
 - **Cancel**: downloads nothing.
 
 Each video is then added to the list as its own download, with its thumbnail, duration and
 the quality and format selected at that moment. Videos join the queue in playlist order and
-download 3 at a time.
+download according to the simultaneous download limit.
 
 **Important:** only URLs that point to `/playlist` are treated as playlists. If you paste a
 video URL that also contains `&list=…` (for example, a video opened from inside a playlist),
@@ -231,9 +272,11 @@ downloaded.
     └── Video 2.mp4
 ```
 
+That's the default folder; you can pick another one on the welcome screen or in
+**Settings → Downloads**. If you change it, downloads already in the queue use the new folder.
+
 Files are named after the video title (`%(title)s.%(ext)s`); if one with that name already
 exists, `yt-dlp` doesn't download it again.
-For now the destination folder can't be changed from the app.
 
 ---
 
@@ -296,6 +339,22 @@ That's the normal block for unsigned apps. Follow the
 Loadr keeps the last lines `yt-dlp` printed and the row shows up to three of them. To see
 the full error, run the same URL in Terminal with `yt-dlp <url>`.
 
+### Only the downloaded amount shows, not the total size
+
+That happens with live streams and some sites that don't announce the size. The download works
+the same; the bar keeps moving until it's done.
+
+### "Can't save to…" error
+
+The download folder doesn't exist or isn't writable (for example, an external drive that's no
+longer connected). Pick another one in **Settings → Downloads** and click **↻**.
+
+### macOS asks whether Loadr may paste from another app
+
+That's macOS's clipboard privacy prompt, shown when an app reads the clipboard on its own, as
+automatic paste does. Allow it for the feature to work, or turn automatic paste off in
+**Settings → General**.
+
 ### The menu bar is still in the old language
 
 That's expected: quit Loadr (⌘Q) and open it again. See [Language](#language).
@@ -316,13 +375,17 @@ Yes, it looks for the tools in Homebrew's paths for both architectures.
 Yes: choose **Audio Only (MP3)** in the quality picker.
 
 **How many downloads run at once?**
-Three. The rest wait in the queue and start as soon as one finishes.
+Three by default; choose from 1 to 10 in **Settings → Downloads**. The rest wait in the queue and
+start as soon as one finishes.
 
 **Can I use Loadr in Spanish?**
 Yes, from **Settings** (⌘,). See [Language](#language).
 
 **Can I change the destination folder?**
-Not yet. It's on the [Roadmap](#roadmap).
+Yes, in **Settings → Downloads**.
+
+**How do I see the welcome screen again?**
+Run `defaults delete com.loadr.loadr hasCompletedOnboarding` in Terminal and open Loadr.
 
 **Does Loadr send my data anywhere?**
 Loadr has no servers of its own and no telemetry. Requests are made by `yt-dlp` directly to
@@ -360,9 +423,10 @@ The project configuration lives in `project.yml`. If you change files or setting
 
 ### Publishing a release
 
-The GitHub Actions workflow (`.github/workflows/release.yml`) builds and publishes a release
-automatically whenever a tag starting with `v` is pushed. The full steps (version bump,
-changelog, tag) are in [docs/publicar-version.md](docs/publicar-version.md) (Spanish).
+Every push to `main` and every pull request is built on GitHub Actions (`.github/workflows/ci.yml`).
+Pushing a tag that starts with `v` runs `.github/workflows/release.yml`, which checks the version,
+builds, ad-hoc signs the app and publishes the release with the notes from `CHANGELOG.md`. The full
+steps are in [docs/publicar-version.md](docs/publicar-version.md) (Spanish).
 
 ---
 
@@ -373,21 +437,26 @@ Loadr/
 ├── project.yml                     XcodeGen project definition
 ├── Config/Info.plist               Languages the app declares (en, es)
 ├── Sources/Loadr/
-│   ├── LoadrApp.swift              Entry point: main window and Settings
+│   ├── LoadrApp.swift              Entry point: main window, Settings and the queue
 │   ├── Localization/
 │   │   ├── LanguageSettings.swift  Language preference and system language detection
 │   │   └── L10n.swift              Every UI string, in English and Spanish
 │   ├── Models/
+│   │   ├── AppSettings.swift       Folder, simultaneous downloads, automatic paste, welcome
 │   │   ├── DownloadTask.swift      Model for a single download
-│   │   └── DownloadManager.swift   Download queue, settings and playlist logic
+│   │   └── DownloadManager.swift   Download queue, quality/format and playlist logic
 │   ├── Services/
-│   │   └── YTDLPService.swift      yt-dlp wrapper (processes, output parsing)
+│   │   ├── YTDLPService.swift      Runs yt-dlp and builds its arguments
+│   │   ├── YTDLPOutput.swift       Parses yt-dlp's output and adds up the progress
+│   │   └── ClipboardReader.swift   Clipboard reading for automatic paste
 │   └── Views/
 │       ├── ContentView.swift       Main window
 │       ├── DownloadRowView.swift   One row per download
-│       └── SettingsView.swift      Settings window
+│       ├── OnboardingView.swift    First-launch welcome screen
+│       ├── SettingsView.swift      Settings window
+│       └── FolderPicker.swift      Choosing and showing the download folder
 ├── docs/                           Technical documentation (Spanish)
-└── .github/workflows/release.yml   Builds and publishes a release when a v* tag is pushed
+└── .github/                        CI, releases and issue templates
 ```
 
 The app hands all downloading to the `yt-dlp` binary and parses its standard output to show
@@ -408,10 +477,7 @@ The in-depth guides are written in Spanish:
 
 ## Roadmap
 
-- Configurable number of simultaneous downloads.
-- Choose the destination folder.
 - Download history.
-- Automatic paste from the clipboard.
 
 ---
 

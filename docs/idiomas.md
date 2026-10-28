@@ -97,13 +97,16 @@ falló cuando la app estaba en inglés muestra el error en español si el usuari
 ### Convenciones de estilo
 
 - **Inglés:** botones, títulos y opciones de menú en *Title Case*, como en macOS ("Clear Completed",
-  "Show in Finder"). Mensajes y descripciones en *sentence case*. Ortografía de EE. UU. ("Canceled").
+  "Show in Finder", "Get Started"). Etiquetas de ajustes, interruptores, mensajes y descripciones en
+  *sentence case* ("Download folder", "Paste links automatically"). Ortografía de EE. UU. ("Canceled").
 - **Español:** solo la primera palabra en mayúscula ("Limpiar completadas"). Tuteo ("Pega la URL…").
   Signos de apertura `¿` y `¡`.
 - **Ambos:** puntos suspensivos con el carácter `…`, no tres puntos; comillas tipográficas `“ ”` y
   apóstrofo `’`.
 - Usa los nombres que usa macOS en cada idioma: "Show in Finder" / "Mostrar en Finder",
   "Settings" / "Ajustes".
+- Los tamaños se escriben con `ByteCountFormatStyle` (estilo `.file`, como Finder) y los porcentajes
+  con `.percent`: el separador decimal sale de la región del sistema, no del idioma de Loadr.
 
 ## Probar los dos idiomas
 

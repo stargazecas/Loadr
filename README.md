@@ -6,6 +6,7 @@
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-000000?logo=apple)
 ![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
 [![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue)](LICENSE)
+[![CI](https://github.com/stargazecas/Loadr/actions/workflows/ci.yml/badge.svg)](https://github.com/stargazecas/Loadr/actions/workflows/ci.yml)
 
 Interfaz gráfica nativa de macOS para [yt-dlp](https://github.com/yt-dlp/yt-dlp), escrita en SwiftUI.
 Pega una URL, elige la calidad y descarga. Sin Terminal.
@@ -17,6 +18,7 @@ Pega una URL, elige la calidad y descarga. Sin Terminal.
 - [Características](#características)
 - [Instalación](#instalación)
 - [Guía de uso](#guía-de-uso)
+- [Ajustes](#ajustes)
 - [Opciones de calidad y formato](#opciones-de-calidad-y-formato)
 - [Playlists](#playlists)
 - [Idioma](#idioma)
@@ -38,14 +40,17 @@ Pega una URL, elige la calidad y descarga. Sin Terminal.
 - Vista previa antes de descargar: título, miniatura y duración.
 - Selector de calidad: mejor calidad, 1080p, 720p o solo audio (MP3).
 - Selector de formato de video: automático, MP4, MKV o WebM.
-- Progreso en tiempo real con porcentaje, velocidad y tiempo restante.
-- Cola de descargas: hasta 3 a la vez; el resto espera su turno.
+- Progreso en tiempo real con lo descargado y el tamaño final ("30.7 MB / 722.6 MB (4%)"),
+  velocidad y tiempo restante.
+- Cola de descargas: 3 a la vez por defecto (de 1 a 10, configurable); el resto espera su turno.
+- Carpeta de descargas configurable.
+- Pegado automático: el enlace que copies aparece ya en el campo de la URL al volver a Loadr.
 - Cancelación de descargas y botón para reintentar las fallidas o canceladas.
 - Botón para mostrar el archivo descargado en Finder.
 - Soporte de playlists de YouTube, con opción de carpeta propia.
 - Limpieza automática de parámetros de rastreo en las URLs.
 - Interfaz en español e inglés, con cambio de idioma al instante.
-- La calidad, el formato y el idioma elegidos se recuerdan entre sesiones.
+- Tus ajustes (calidad, formato, carpeta, idioma…) se recuerdan entre sesiones.
 
 Loadr no implementa la descarga por sí mismo: delega todo en `yt-dlp` y `ffmpeg`.
 Por eso funciona con los sitios que `yt-dlp` soporte.
@@ -98,6 +103,16 @@ puedes [compilarlo tú mismo](#compilar-desde-el-código-fuente).
 
 ## Guía de uso
 
+### La primera vez
+
+Al abrir Loadr por primera vez aparece una bienvenida con dos ajustes:
+
+- **¿Dónde guardamos las descargas?** Por defecto, `Descargas/Loadr`. Pulsa **Cambiar…** para elegir
+  otra carpeta.
+- **Pegar enlaces automáticamente**, activado por defecto (ver [Ajustes](#ajustes)).
+
+Pulsa **Empezar**. Puedes cambiar ambas cosas cuando quieras en **Loadr → Ajustes…** (⌘,).
+
 ### Descargar un video
 
 1. Abre Loadr.
@@ -106,16 +121,21 @@ puedes [compilarlo tú mismo](#compilar-desde-el-código-fuente).
 4. Pulsa **Descargar** o presiona **Enter**.
 
 Loadr añade la descarga a la lista. Primero muestra "Obteniendo información…" y después
-aparecen la miniatura, el título y la duración. Cuando empieza a descargar verás el
-porcentaje, la velocidad y el tiempo restante.
+aparecen la miniatura, el título y la duración. Mientras descarga verás cuánto lleva y cuánto
+ocupará el archivo, por ejemplo **30.7 MB / 722.6 MB (4%)**, además de la velocidad y el tiempo
+restante. Si el sitio solo permite estimar el tamaño, el total aparece con `~` delante.
+
+Con la máxima calidad, `yt-dlp` suele bajar el video y el audio por separado y luego unirlos:
+Loadr suma las dos pistas en una sola barra y muestra "Procesando…" mientras las une.
 
 > El botón **Descargar** solo se activa si el texto es una URL `http` o `https` válida.
 
 ### Descargar varios videos
 
 Pega otra URL y vuelve a pulsar **Descargar** sin esperar a que termine la anterior.
-Loadr descarga hasta **3 videos a la vez**; los demás quedan "En cola" y empiezan en orden
-de llegada a medida que se libera un hueco. Las descargas más recientes aparecen arriba.
+Loadr descarga hasta **3 videos a la vez** (puedes cambiarlo en [Ajustes](#ajustes)); los demás
+quedan "En cola" y empiezan en orden de llegada a medida que se libera un hueco. Las descargas más
+recientes aparecen arriba.
 
 ### Cancelar y reintentar
 
@@ -129,7 +149,7 @@ en la cola.
 ### Ver el archivo descargado
 
 Cuando una descarga termina aparece el icono de carpeta. Púlsalo para mostrar el archivo
-en Finder. Si Loadr no puede localizar el archivo, abre la carpeta `Downloads/Loadr`.
+en Finder. Si Loadr no puede localizar el archivo, abre la carpeta de descargas.
 
 El botón de **papelera** de la barra superior quita de la lista las descargas completadas
 (los archivos no se borran).
@@ -138,12 +158,34 @@ El botón de **papelera** de la barra superior quita de la lista las descargas c
 
 | Estado | Significado |
 | --- | --- |
-| En cola | Esperando turno: ya hay 3 descargas en curso. |
+| En cola | Esperando turno: ya se alcanzó el límite de descargas simultáneas. |
 | Obteniendo información… | Loadr está consultando título, miniatura y duración. |
-| Porcentaje + velocidad + tiempo restante | Descarga en curso. |
+| 30.7 MB / 722.6 MB (4%) | Descarga en curso, con velocidad y tiempo restante a la derecha. |
+| Procesando… | `yt-dlp` está uniendo el video y el audio o convirtiendo a MP3. |
 | Completado | El archivo está listo. |
 | Cancelado | La cancelaste. Se puede reintentar. |
 | Mensaje en rojo | La descarga falló. El mensaje procede de `yt-dlp`. Se puede reintentar. |
+
+---
+
+## Ajustes
+
+Abre **Loadr → Ajustes…** (⌘,).
+
+**General**
+
+- **Idioma**: Sistema, English o Español (ver [Idioma](#idioma)).
+- **Pegar enlaces automáticamente**: si copias el enlace de un video y vuelves a Loadr, aparece ya
+  en el campo de la URL; solo tienes que pulsar **Descargar**. Nunca reemplaza lo que estés
+  escribiendo y no vuelve a pegar el mismo enlace dos veces. Según tu versión de macOS, el sistema
+  puede pedirte permiso para que Loadr lea el portapapeles; si quieres que no vuelva a preguntar,
+  permítelo en **Ajustes del Sistema → Privacidad y seguridad**.
+
+**Descargas**
+
+- **Carpeta de descargas**: dónde se guardan los archivos. **Mostrar en Finder** la abre.
+- **Descargas simultáneas**: de 1 a 10 (3 por defecto). Si lo subes, las que esperan en cola
+  empiezan en el momento; si lo bajas, las que ya están en marcha terminan y las nuevas esperan.
 
 ---
 
@@ -182,14 +224,15 @@ Si pegas la URL de una playlist de YouTube (una dirección del tipo
 `youtube.com/playlist?list=…`), Loadr muestra un aviso con el número de videos y te
 pregunta dónde guardarlos:
 
-- **Carpeta con el nombre de la playlist**: crea una subcarpeta dentro de `Downloads/Loadr`.
+- **Carpeta con el nombre de la playlist**: crea una subcarpeta dentro de tu carpeta de descargas.
   Los caracteres `/` y `:` del título se sustituyen por `-`.
-- **Carpeta general**: guarda todo directamente en `Downloads/Loadr`.
+- **Carpeta general**: guarda todo directamente en tu carpeta de descargas.
 - **Cancelar**: no descarga nada.
 
 Después, cada video se añade a la lista como una descarga independiente, con su miniatura,
 su duración y la calidad y el formato que tengas seleccionados en ese momento. Los videos
-entran en la cola en el orden de la playlist y se descargan de 3 en 3.
+entran en la cola en el orden de la playlist y se descargan según el límite de descargas
+simultáneas.
 
 **Importante:** solo se detectan como playlist las URLs que apuntan a `/playlist`. Si pegas
 la URL de un video que además incluye `&list=…` (por ejemplo, un video abierto desde dentro
@@ -232,10 +275,12 @@ No tienes que hacer nada: ocurre de forma automática y no cambia el video que s
     └── Video 2.mp4
 ```
 
-En Finder la carpeta aparece como **Descargas/Loadr** si tu Mac está en español.
+Esa es la carpeta por defecto (en Finder aparece como **Descargas/Loadr** si tu Mac está en
+español); puedes elegir otra en la bienvenida o en **Ajustes → Descargas**. Si la cambias, las
+descargas que ya están en cola usan la carpeta nueva.
+
 Los archivos se nombran con el título del video (`%(title)s.%(ext)s`); si ya existe uno con
 ese nombre, `yt-dlp` no lo vuelve a descargar.
-Por ahora la carpeta de destino no se puede cambiar desde la app.
 
 ---
 
@@ -299,6 +344,22 @@ Loadr guarda las últimas líneas que escribió `yt-dlp` y la fila muestra hasta
 necesitas ver el error completo, ejecuta la misma URL en la Terminal con `yt-dlp <url>`.
 Esos mensajes vienen de `yt-dlp` y suelen estar en inglés aunque la app esté en español.
 
+### No se ve el tamaño total, solo lo descargado
+
+Pasa con los directos y con algunos sitios que no anuncian el tamaño. La descarga funciona igual;
+la barra se muestra en movimiento continuo hasta que termina.
+
+### Error "No se puede guardar en…"
+
+La carpeta de descargas no existe o no se puede escribir en ella (por ejemplo, era un disco externo
+que ya no está conectado). Elige otra en **Ajustes → Descargas** y pulsa **↻**.
+
+### macOS pregunta si Loadr puede pegar desde otra app
+
+Es el aviso de privacidad del portapapeles que muestra macOS cuando una app lo lee por su cuenta,
+como hace el pegado automático. Permítelo para que funcione, o desactiva el pegado automático en
+**Ajustes → General**.
+
 ### La barra de menús sigue en el idioma anterior
 
 Es normal: cierra Loadr (⌘Q) y vuelve a abrirla. Ver [Idioma](#idioma).
@@ -319,13 +380,17 @@ Sí, se buscan las herramientas en las rutas de Homebrew de ambas arquitecturas.
 Sí: elige **Solo audio (MP3)** en el selector de calidad.
 
 **¿Cuántas descargas hace a la vez?**
-Tres. El resto espera en cola y empieza solo cuando termina alguna.
+Tres por defecto; puedes elegir de 1 a 10 en **Ajustes → Descargas**. El resto espera en cola y
+empieza solo cuando termina alguna.
 
 **¿Puedo usar Loadr en inglés?**
 Sí, en **Ajustes** (⌘,). Ver [Idioma](#idioma).
 
 **¿Puedo cambiar la carpeta de destino?**
-Todavía no. Está en el [Roadmap](#roadmap).
+Sí, en **Ajustes → Descargas**.
+
+**¿Cómo vuelvo a ver la bienvenida?**
+Ejecuta `defaults delete com.loadr.loadr hasCompletedOnboarding` en la Terminal y abre Loadr.
 
 **¿Loadr envía mis datos a algún sitio?**
 Loadr no tiene servidores propios ni telemetría. Las peticiones las hace `yt-dlp` directamente
@@ -363,9 +428,10 @@ vuelve a ejecutar `xcodegen` para regenerar el `.xcodeproj`.
 
 ### Publicar una versión
 
-El workflow de GitHub Actions (`.github/workflows/release.yml`) compila y publica una release
-automáticamente cuando se sube una etiqueta que empiece por `v`. Los pasos completos (subir
-la versión, changelog, etiqueta) están en [docs/publicar-version.md](docs/publicar-version.md).
+Cada push a `main` y cada pull request se compilan en GitHub Actions (`.github/workflows/ci.yml`).
+Al subir una etiqueta que empiece por `v`, `.github/workflows/release.yml` comprueba la versión,
+compila, firma la app ad hoc y publica la release con las notas de `CHANGELOG.md`. Los pasos
+completos están en [docs/publicar-version.md](docs/publicar-version.md).
 
 ---
 
@@ -376,21 +442,26 @@ Loadr/
 ├── project.yml                     Definición del proyecto para XcodeGen
 ├── Config/Info.plist               Idiomas que declara la app (en, es)
 ├── Sources/Loadr/
-│   ├── LoadrApp.swift              Punto de entrada: ventana principal y Ajustes
+│   ├── LoadrApp.swift              Punto de entrada: ventana principal, Ajustes y la cola
 │   ├── Localization/
 │   │   ├── LanguageSettings.swift  Preferencia de idioma y detección del idioma del sistema
 │   │   └── L10n.swift              Todos los textos de la interfaz, en español e inglés
 │   ├── Models/
+│   │   ├── AppSettings.swift       Carpeta, descargas simultáneas, pegado automático, bienvenida
 │   │   ├── DownloadTask.swift      Modelo de una descarga individual
-│   │   └── DownloadManager.swift   Cola de descargas, ajustes y lógica de playlists
+│   │   └── DownloadManager.swift   Cola de descargas, calidad/formato y lógica de playlists
 │   ├── Services/
-│   │   └── YTDLPService.swift      Wrapper de yt-dlp (procesos, parseo de salida)
+│   │   ├── YTDLPService.swift      Lanza yt-dlp y construye sus argumentos
+│   │   ├── YTDLPOutput.swift       Interpreta la salida de yt-dlp y suma el progreso
+│   │   └── ClipboardReader.swift   Lectura del portapapeles para el pegado automático
 │   └── Views/
 │       ├── ContentView.swift       Ventana principal
 │       ├── DownloadRowView.swift   Fila de cada descarga
-│       └── SettingsView.swift      Ventana de Ajustes
+│       ├── OnboardingView.swift    Bienvenida del primer arranque
+│       ├── SettingsView.swift      Ventana de Ajustes
+│       └── FolderPicker.swift      Elegir y mostrar la carpeta de descargas
 ├── docs/                           Documentación técnica
-└── .github/workflows/release.yml   Compila y publica una release al subir un tag v*
+└── .github/                        CI, releases y plantillas de issues
 ```
 
 La app delega toda la descarga en el binario de `yt-dlp` y parsea su salida estándar para
@@ -409,10 +480,7 @@ mostrar el progreso.
 
 ## Roadmap
 
-- Número de descargas simultáneas configurable.
-- Selector de carpeta de destino.
 - Historial de descargas.
-- Pegado automático desde el portapapeles.
 
 ---
 

@@ -6,14 +6,43 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [Sin publicar]
 
+## [0.3.0] - 2026-10-28
+
 ### Añadido
 
+- El progreso muestra lo descargado y el tamaño final, por ejemplo "30.7 MB / 722.6 MB (4%)", junto
+  con la velocidad y el tiempo restante. Si yt-dlp baja el video y el audio por separado, se suman en
+  una sola barra; "~" indica que el tamaño es estimado.
+- Estado "Procesando…" mientras yt-dlp une las pistas o convierte el audio.
+- Carpeta de descargas configurable en **Ajustes → Descargas**.
+- Número de descargas simultáneas configurable, de 1 a 10, en **Ajustes → Descargas**. Al subir el
+  límite empiezan enseguida las que esperaban en cola.
+- Pegado automático: al volver a Loadr, el enlace de video que hayas copiado aparece ya en el campo de
+  la URL. Se activa o desactiva en **Ajustes → General**.
+- Pantalla de bienvenida en el primer arranque para elegir la carpeta de descargas y el pegado
+  automático.
 - Licencia MIT.
+- Compilación automática en GitHub (CI) en cada push y pull request, y plantillas para reportar
+  errores y proponer mejoras.
 
 ### Cambiado
 
-- El README combina la guía de uso detallada (preguntas frecuentes, solución de problemas) con
-  las novedades de 0.2.0, y el README en inglés es su traducción completa.
+- Loadr recibe el progreso de yt-dlp en un formato pensado para programas (`--progress-template` y
+  `--print`) en lugar de interpretar el texto de su barra de progreso.
+- La cola de descargas pertenece a la app y no a la ventana: cerrarla no pierde la lista. Loadr usa
+  una sola ventana (se quitó "Nueva ventana", ⌘N).
+- Al salir de Loadr se detienen las descargas en curso en lugar de dejar procesos de yt-dlp en
+  segundo plano.
+- Las releases incluyen las notas de este registro de cambios, la app firmada ad hoc y el checksum
+  SHA-256 del zip. El workflow comprueba antes que el tag coincide con la versión del proyecto.
+- El README combina la guía de uso detallada (preguntas frecuentes, solución de problemas) con las
+  novedades, y el README en inglés es su traducción completa.
+
+### Corregido
+
+- Una carrera al lanzar yt-dlp podía dejar una descarga en "Obteniendo información…" para siempre.
+- Se podían perder líneas de la salida de yt-dlp cuando un carácter con acento o un emoji del título
+  quedaba partido entre dos lecturas.
 
 ## [0.2.0] - 2026-10-22
 
@@ -64,6 +93,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - Detección de yt-dlp y ffmpeg con aviso en la interfaz.
 - Workflow de GitHub Actions que publica un release al subir un tag.
 
-[Sin publicar]: https://github.com/stargazecas/Loadr/compare/v0.2.0...HEAD
+[Sin publicar]: https://github.com/stargazecas/Loadr/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/stargazecas/Loadr/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/stargazecas/Loadr/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/stargazecas/Loadr/releases/tag/v0.1.0
